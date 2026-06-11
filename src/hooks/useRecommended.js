@@ -29,7 +29,7 @@ function pickFromPool(date, exclude) {
   return [pool[first], pool[second]];
 }
 
-export function useRecommended(apiKey, userCategories) {
+export function useRecommended(aiConfig, userCategories) {
   const [recommended, setRecommended] = useState(() => {
     const saved = storage.get(STORAGE_KEYS.recommended);
     if (saved?.date === todayStr() && Array.isArray(saved.categories)) {
@@ -42,10 +42,12 @@ export function useRecommended(apiKey, userCategories) {
     const today = todayStr();
     const saved = storage.get(STORAGE_KEYS.recommended);
     if (saved?.date === today) return;
-    if (!apiKey) return; // 키 없음 → 풀 기반 폴백 그대로 사용
+    if (!aiConfig.apiKey) return; // 키 없음 → 풀 기반 폴백 그대로 사용
     let cancelled = false;
     generateRecommended({
-      apiKey,
+      provider: aiConfig.provider,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       exclude: [...DEFAULT_CATEGORIES, ...userCategories],
     })
       .then((categories) => {
@@ -61,7 +63,7 @@ export function useRecommended(apiKey, userCategories) {
     };
     // 사용자 카테고리 변경만으로 재호출하지 않는다 (하루 1회 원칙)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey]);
+  }, [aiConfig.provider, aiConfig.apiKey]);
 
   // 사용자/기본 카테고리와 겹치면 숨김
   return recommended.filter(

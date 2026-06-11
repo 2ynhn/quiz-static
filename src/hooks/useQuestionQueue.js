@@ -17,9 +17,9 @@ function shuffle(arr) {
 
 // 문제 공급 큐: AI 배치 생성 → 큐 소비, 잔여 3개 이하 시 백그라운드 선행 로딩.
 // AI 실패 시 내장 폴백 문제로 전환한다.
-export function useQuestionQueue({ apiKey, category, difficulty }) {
+export function useQuestionQueue({ aiConfig, category, difficulty }) {
   const [current, setCurrent] = useState(null);
-  const [source, setSource] = useState(apiKey ? 'ai' : 'fallback');
+  const [source, setSource] = useState(aiConfig.apiKey ? 'ai' : 'fallback');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
 
@@ -59,7 +59,9 @@ export function useQuestionQueue({ apiKey, category, difficulty }) {
       fillPromiseRef.current = (async () => {
         try {
           const questions = await generateQuestions({
-            apiKey,
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            model: aiConfig.model,
             category,
             difficulty,
             count: BATCH_SIZE,
@@ -72,7 +74,7 @@ export function useQuestionQueue({ apiKey, category, difficulty }) {
       })();
     }
     return fillPromiseRef.current;
-  }, [apiKey, category, difficulty]);
+  }, [aiConfig.provider, aiConfig.apiKey, aiConfig.model, category, difficulty]);
 
   const advance = useCallback(async () => {
     if (sourceRef.current === 'ai') {

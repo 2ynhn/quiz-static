@@ -1,12 +1,22 @@
-// provider 어댑터 진입점 — 추후 Gemini, quiz-api(공용키 프록시) 어댑터를 여기에 추가한다.
+// provider 어댑터 진입점 — 새 프로바이더는 어댑터 모듈 + 이 레지스트리 + constants.PROVIDERS에 추가한다.
 import { openaiProvider } from './openai.js';
+import { anthropicProvider } from './anthropic.js';
 import { AiError } from './errors.js';
 
-const provider = openaiProvider;
+const adapters = {
+  openai: openaiProvider,
+  anthropic: anthropicProvider,
+};
+
+function getAdapter(providerId) {
+  const adapter = adapters[providerId];
+  if (!adapter) {
+    throw new AiError('network', `지원하지 않는 프로바이더입니다: ${providerId}`);
+  }
+  return adapter;
+}
 
 export { AiError };
-export const aiModelName = provider.model;
-export const aiProviderName = provider.name;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -22,14 +32,14 @@ async function withRateLimitRetry(fn) {
   }
 }
 
-export function generateQuestions(opts) {
-  return withRateLimitRetry(() => provider.generateQuestions(opts));
+export function generateQuestions({ provider, ...opts }) {
+  return withRateLimitRetry(() => getAdapter(provider).generateQuestions(opts));
 }
 
-export function generateRecommended(opts) {
-  return withRateLimitRetry(() => provider.generateRecommended(opts));
+export function generateRecommended({ provider, ...opts }) {
+  return withRateLimitRetry(() => getAdapter(provider).generateRecommended(opts));
 }
 
-export function validateKey(apiKey) {
-  return provider.validateKey(apiKey);
+export function validateKey(provider, apiKey, model) {
+  return getAdapter(provider).validateKey(apiKey, model);
 }

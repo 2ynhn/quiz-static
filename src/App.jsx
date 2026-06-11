@@ -1,30 +1,65 @@
 import { useState } from 'react';
 import { storage } from './storage.js';
-import { STORAGE_KEYS } from './constants.js';
+import { STORAGE_KEYS, PROVIDERS, DEFAULT_PROVIDER } from './constants.js';
 import { useRecommended } from './hooks/useRecommended.js';
 import SetupScreen from './screens/SetupScreen.jsx';
 import GameScreen from './screens/GameScreen.jsx';
 import ResultScreen from './screens/ResultScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 
+// quiz.providers 로드 + v1(quiz.apiKey 단일 키) 마이그레이션
+function loadProviderSettings() {
+  const settings = {};
+  for (const [id, meta] of Object.entries(PROVIDERS)) {
+    settings[id] = { key: '', model: meta.defaultModel };
+  }
+  const saved = storage.get(STORAGE_KEYS.providers);
+  if (saved && typeof saved === 'object') {
+    for (const id of Object.keys(settings)) {
+      const entry = saved[id];
+      if (entry && typeof entry === 'object') {
+        if (typeof entry.key === 'string') settings[id].key = entry.key;
+        if (PROVIDERS[id].models.includes(entry.model)) settings[id].model = entry.model;
+      }
+    }
+  }
+  const legacyKey = storage.get(STORAGE_KEYS.legacyApiKey);
+  if (typeof legacyKey === 'string' && legacyKey && !settings.openai.key) {
+    settings.openai.key = legacyKey;
+    storage.set(STORAGE_KEYS.providers, settings);
+  }
+  storage.remove(STORAGE_KEYS.legacyApiKey);
+  return settings;
+}
+
 export default function App() {
   const [screen, setScreen] = useState('setup'); // setup | playing | result | settings
-  const [apiKey, setApiKeyState] = useState(() => storage.get(STORAGE_KEYS.apiKey, ''));
+  const [provider, setProviderState] = useState(() => {
+    const saved = storage.get(STORAGE_KEYS.provider);
+    return PROVIDERS[saved] ? saved : DEFAULT_PROVIDER;
+  });
+  const [providerSettings, setProviderSettingsState] = useState(loadProviderSettings);
   const [userCategories, setUserCategoriesState] = useState(() =>
     storage.get(STORAGE_KEYS.userCategories, [])
   );
   const [gameConfig, setGameConfig] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
-  const recommended = useRecommended(apiKey, userCategories);
+  const setProvider = (id) => {
+    storage.set(STORAGE_KEYS.provider, id);
+    setProviderState(id);
+  };
 
-  const setApiKey = (key) => {
-    if (key) {
-      storage.set(STORAGE_KEYS.apiKey, key);
-    } else {
-      storage.remove(STORAGE_KEYS.apiKey);
-    }
-    setApiKeyState(key || '');
+  const setProviderSettings = (next) => {
+    storage.set(STORAGE_KEYS.providers, next);
+    setProviderSettingsState(next);
+  };
+
+  const updateProviderEntry = (id, patch) => {
+    setProviderSettings({
+      ...providerSettings,
+      [id]: { ...providerSettings[id], ...patch },
+    });
   };
 
   const setUserCategories = (categories) => {
@@ -32,11 +67,20 @@ export default function App() {
     setUserCategoriesState(categories);
   };
 
+  // 현재 활성 프로바이더의 AI 호출 구성
+  const aiConfig = {
+    provider,
+    apiKey: providerSettings[provider].key,
+    model: providerSettings[provider].model,
+  };
+
+  const recommended = useRecommended(aiConfig, userCategories);
+
   if (screen === 'playing' && gameConfig) {
     return (
       <GameScreen
         config={gameConfig}
-        apiKey={apiKey}
+        aiConfig={aiConfig}
         onFinish={(result) => {
           setGameResult(result);
           setScreen('result');
@@ -52,9 +96,12 @@ export default function App() {
   if (screen === 'settings') {
     return (
       <SettingsScreen
-        apiKey={apiKey}
-        onSaveKey={setApiKey}
-        onDeleteKey={() => setApiKey('')}
+        provider={provider}
+        onChangeProvider={setProvider}
+        providerSettings={providerSettings}
+        onSaveKey={(id, key) => updateProviderEntry(id, { key })}
+        onDeleteKey={(id) => updateProviderEntry(id, { key: '' })}
+        onChangeModel={(id, model) => updateProviderEntry(id, { model })}
         userCategories={userCategories}
         onChangeUserCategories={setUserCategories}
         onBack={() => setScreen('setup')}
@@ -64,7 +111,7 @@ export default function App() {
 
   return (
     <SetupScreen
-      apiKey={apiKey}
+      hasApiKey={Boolean(aiConfig.apiKey)}
       userCategories={userCategories}
       recommended={recommended}
       onStart={(config) => {

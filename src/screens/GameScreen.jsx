@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuestionQueue } from '../hooks/useQuestionQueue.js';
+import { PROVIDERS } from '../constants.js';
 
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-export default function GameScreen({ config, apiKey, onFinish }) {
+export default function GameScreen({ config, aiConfig, onFinish }) {
   const { mode, teamCount, turnMode, consecutiveCount, difficulty, category } = config;
 
   const [teams, setTeams] = useState(() =>
@@ -19,7 +20,7 @@ export default function GameScreen({ config, apiKey, onFinish }) {
   const [hintShown, setHintShown] = useState(false);
 
   const { current, source, loading, notice, advance, dismissNotice } = useQuestionQueue({
-    apiKey,
+    aiConfig,
     category,
     difficulty,
   });
@@ -109,7 +110,7 @@ export default function GameScreen({ config, apiKey, onFinish }) {
 
       <main className="question-area">
         <p className="question-source">
-          {source === 'ai' ? 'GPT로부터 생성된 문제입니다' : '기본 문제입니다'}
+          {source === 'ai' ? PROVIDERS[aiConfig.provider].sourceLabel : '기본 문제입니다'}
         </p>
         {loading || !current ? (
           <p className="question-text question-text--loading">문제를 만들고 있어요…</p>

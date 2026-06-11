@@ -4,7 +4,7 @@ import { DEFAULT_CATEGORIES, DIFFICULTIES } from '../constants.js';
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export default function SetupScreen({
-  apiKey,
+  hasApiKey,
   userCategories,
   recommended,
   onStart,
@@ -49,7 +49,7 @@ export default function SetupScreen({
         </button>
       </header>
 
-      {!apiKey && (
+      {!hasApiKey && (
         <button type="button" className="banner" onClick={onOpenSettings}>
           🔑 API 키를 등록하면 AI 생성 문제를 사용할 수 있어요 →
         </button>

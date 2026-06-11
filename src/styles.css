@@ -420,6 +420,17 @@ body {
   border-color: var(--accent);
 }
 
+.field-label {
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+select.input {
+  appearance: none;
+  width: 100%;
+  cursor: pointer;
+}
+
 .key-row {
   display: flex;
   align-items: center;
