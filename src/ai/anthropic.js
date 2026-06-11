@@ -1,11 +1,5 @@
 import { AiError } from './errors.js';
-import {
-  QUESTION_SYSTEM_PROMPT,
-  RECOMMEND_SYSTEM_PROMPT,
-  buildQuestionUserPrompt,
-  buildRecommendUserPrompt,
-} from './prompts.js';
-import { parseJson, normalizeQuestions, normalizeCategories } from './shared.js';
+import { parseJson } from './shared.js';
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages';
 
@@ -59,29 +53,15 @@ async function callMessages(apiKey, body) {
 }
 
 export const anthropicProvider = {
-  async generateQuestions({ apiKey, model, category, difficulty, count, excludeKeywords = [] }) {
+  // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환
+  async completeJSON({ apiKey, model, system, user }) {
     const text = await callMessages(apiKey, {
       model,
       max_tokens: 4096,
-      system: QUESTION_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: buildQuestionUserPrompt({ category, difficulty, count, excludeKeywords }),
-        },
-      ],
+      system,
+      messages: [{ role: 'user', content: user }],
     });
-    return normalizeQuestions(parseJson(text));
-  },
-
-  async generateRecommended({ apiKey, model, exclude = [] }) {
-    const text = await callMessages(apiKey, {
-      model,
-      max_tokens: 1024,
-      system: RECOMMEND_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildRecommendUserPrompt(exclude) }],
-    });
-    return normalizeCategories(parseJson(text));
+    return parseJson(text);
   },
 
   async validateKey(apiKey, model) {

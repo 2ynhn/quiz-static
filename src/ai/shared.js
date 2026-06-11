@@ -34,3 +34,33 @@ export function normalizeCategories(parsed) {
   }
   return categories.slice(0, 2);
 }
+
+// ── 기계적 품질 필터 ──────────────────────────────────────────
+
+function normalizeForLeak(s) {
+  return String(s)
+    .toLowerCase()
+    .replace(/[\s·\-‧.,'"“”‘’()[\]?!~]/g, '');
+}
+
+// 문제문/힌트에 정답(또는 altAnswers)이 그대로 노출된 문제를 걸러낸다.
+export function leaksAnswer(q) {
+  const answers = [q.answer, ...(q.altAnswers || [])]
+    .map(normalizeForLeak)
+    .filter((a) => a.length >= 2); // 1글자 답은 오탐이 많아 검수 단계에 맡긴다
+  if (answers.length === 0) return false;
+  const questionText = normalizeForLeak(q.question);
+  const hintText = normalizeForLeak(q.hint || '');
+  return answers.some((a) => questionText.includes(a) || hintText.includes(a));
+}
+
+// 검수 응답({"results":[{index,pass}]})을 적용해 통과한 문제만 남긴다.
+// 응답 형식이 어긋나면 검수를 건너뛴다(원본 유지) — 검수 실패가 게임을 막으면 안 된다.
+export function applyReview(questions, parsed) {
+  const results = Array.isArray(parsed?.results) ? parsed.results : null;
+  if (!results) return questions;
+  const passed = new Set(
+    results.filter((r) => r && r.pass === true).map((r) => Number(r.index))
+  );
+  return questions.filter((_, i) => passed.has(i));
+}

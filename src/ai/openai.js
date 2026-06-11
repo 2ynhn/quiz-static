@@ -1,11 +1,5 @@
 import { AiError } from './errors.js';
-import {
-  QUESTION_SYSTEM_PROMPT,
-  RECOMMEND_SYSTEM_PROMPT,
-  buildQuestionUserPrompt,
-  buildRecommendUserPrompt,
-} from './prompts.js';
-import { parseJson, normalizeQuestions, normalizeCategories } from './shared.js';
+import { parseJson } from './shared.js';
 
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
@@ -52,31 +46,17 @@ async function callChat(apiKey, body) {
 }
 
 export const openaiProvider = {
-  async generateQuestions({ apiKey, model, category, difficulty, count, excludeKeywords = [] }) {
+  // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환
+  async completeJSON({ apiKey, model, system, user }) {
     const content = await callChat(apiKey, {
       model,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: QUESTION_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: buildQuestionUserPrompt({ category, difficulty, count, excludeKeywords }),
-        },
+        { role: 'system', content: system },
+        { role: 'user', content: user },
       ],
     });
-    return normalizeQuestions(parseJson(content));
-  },
-
-  async generateRecommended({ apiKey, model, exclude = [] }) {
-    const content = await callChat(apiKey, {
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: RECOMMEND_SYSTEM_PROMPT },
-        { role: 'user', content: buildRecommendUserPrompt(exclude) },
-      ],
-    });
-    return normalizeCategories(parseJson(content));
+    return parseJson(content);
   },
 
   async validateKey(apiKey, model) {
