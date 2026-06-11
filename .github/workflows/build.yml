@@ -25,6 +25,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Enable GitHub Pages (최초 1회 자동 활성화)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Install & build (단일 HTML)
         run: |
           npm ci
