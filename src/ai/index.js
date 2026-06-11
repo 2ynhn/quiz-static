@@ -2,6 +2,7 @@
 // 품질 파이프라인: ① 후보를 여유 있게 생성 → ② 정답 노출 기계 필터 → ③ AI 교차 검수 → ④ 요청 수만큼 반환
 import { openaiProvider } from './openai.js';
 import { anthropicProvider } from './anthropic.js';
+import { googleProvider } from './google.js';
 import { AiError } from './errors.js';
 import {
   QUESTION_SYSTEM_PROMPT,
@@ -21,6 +22,7 @@ import {
 const adapters = {
   openai: openaiProvider,
   anthropic: anthropicProvider,
+  google: googleProvider,
 };
 
 function getAdapter(providerId) {

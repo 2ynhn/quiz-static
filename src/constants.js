@@ -33,6 +33,19 @@ export const PROVIDERS = {
       usage: 'https://platform.claude.com/settings/usage',
     },
   },
+  google: {
+    id: 'google',
+    label: 'Gemini',
+    models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'],
+    defaultModel: 'gemini-2.5-flash',
+    sourceLabel: '제미나이로부터 생성된 문제입니다',
+    keyPlaceholder: 'AIza... 개인 Gemini API 키 입력',
+    keyGuide: 'Google AI Studio에서 "Get API key"로 발급하세요. 무료 티어를 사용할 수 있습니다.',
+    links: {
+      apiKeys: 'https://aistudio.google.com/app/apikey',
+      usage: 'https://aistudio.google.com/',
+    },
+  },
 };
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS);
