@@ -61,7 +61,7 @@
 ## 4. 빌드·배포 — GitHub Actions로 "웹에서 다운로드"까지
 저장소 구조와 워크플로:
 ```
-quiz-app/
+quiz-static/
  ├─ src/                    React 소스
  ├─ vite.config.js          vite-plugin-singlefile 설정
  └─ .github/workflows/build.yml
@@ -69,12 +69,12 @@ quiz-app/
 **build.yml 동작 (main push 시):**
 1. `npm ci && npm run build` → `dist/index.html` 단일 파일 생성
 2. 배포 2종 동시 수행:
-   - **GitHub Pages 배포** → `https://<계정>.github.io/quiz-app/` 에서 **브라우저로 바로 실행** (다운로드 없이 사용 가능, file:// 제약도 없음)
+   - **GitHub Pages 배포** → `https://<계정>.github.io/quiz-static/` 에서 **브라우저로 바로 실행** (다운로드 없이 사용 가능, file:// 제약도 없음)
    - **GitHub Release에 `quiz.html` 첨부** → Release 페이지의 고정 URL에서 **파일 다운로드** (로컬 실행용)
 | 배포 방식 | 용도 | URL 형태 |
 |---|---|---|
-| GitHub Pages | 즉시 실행 (권장 기본) | `https://<계정>.github.io/quiz-app/` |
-| Release 자산 | 파일 다운로드 → 로컬 실행 | `https://github.com/<계정>/quiz-app/releases/latest/download/quiz.html` |
+| GitHub Pages | 즉시 실행 (권장 기본) | `https://<계정>.github.io/quiz-static/` |
+| Release 자산 | 파일 다운로드 → 로컬 실행 | `https://github.com/<계정>/quiz-static/releases/latest/download/quiz.html` |
 - Pages 쪽은 https 호스팅이므로 나중에 PWA(홈 화면 설치)로 확장 가능 — file:// 방식의 단점이 자연 해소됨.
 - 기존에 운영 중인 build.yml(dist 커밋) 패턴과 동일한 난이도이며, Pages 배포는 공식 액션(`actions/deploy-pages`) 조합으로 처리.
 ### Claude Code 작업 지시 예시
@@ -82,7 +82,7 @@ quiz-app/
 1. "이 기획서대로 Vite+React 프로젝트를 생성하고 vite-plugin-singlefile 단일 빌드를 설정해"
 2. "솔로 모드 → 팀전 순서로 화면을 구현해" (5절 명세)
 3. "GitHub Pages + Release 배포용 build.yml을 작성해"
-4. `gh repo create quiz-app --public` 후 push → Actions가 빌드/배포 (Claude Code가 gh CLI로 저장소 생성·push까지 수행 가능)
+4. `gh repo create quiz-static --public` 후 push → Actions가 빌드/배포 (Claude Code가 gh CLI로 저장소 생성·push까지 수행 가능)
 ⚠️ 공개 저장소에 올리므로 **API 키가 소스·커밋·기획서 어디에도 들어가지 않도록 주의** (키는 오직 사용자 브라우저의 localStorage에만 존재).
 ---
 ## 5. 화면 구성

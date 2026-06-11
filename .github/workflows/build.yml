@@ -1,0 +1,61 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # Release 생성/갱신
+  pages: write # GitHub Pages 배포
+  id-token: write # Pages OIDC
+
+concurrency:
+  group: build-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install & build (단일 HTML)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare release asset
+        run: cp dist/index.html dist/quiz.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Attach quiz.html to latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: quiz.html 최신 빌드
+          body: |
+            단일 HTML 빌드 결과물입니다. `quiz.html`을 내려받아 브라우저로 열면 바로 실행됩니다.
+            (안드로이드: Chrome, iOS: Safari 권장)
+          files: dist/quiz.html
+          make_latest: true
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
