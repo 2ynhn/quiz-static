@@ -27,12 +27,22 @@ export function normalizeQuestions(parsed) {
   }));
 }
 
+// 추천 응답은 [{name, theme}] 형태로 정규화 — 문자열 배열(구 스키마)도 허용
 export function normalizeCategories(parsed) {
-  const categories = Array.isArray(parsed?.categories) ? parsed.categories.map(String) : [];
-  if (categories.length < 2) {
+  const list = Array.isArray(parsed?.categories) ? parsed.categories : [];
+  const items = list
+    .map((entry) => {
+      if (typeof entry === 'string') return { name: entry, theme: null };
+      if (entry && typeof entry === 'object' && entry.name) {
+        return { name: String(entry.name), theme: entry.theme || null };
+      }
+      return null;
+    })
+    .filter(Boolean);
+  if (items.length < 2) {
     throw new AiError('parse', '추천 카테고리 생성에 실패했습니다.');
   }
-  return categories.slice(0, 2);
+  return items.slice(0, 2);
 }
 
 // ── 기계적 품질 필터 ──────────────────────────────────────────

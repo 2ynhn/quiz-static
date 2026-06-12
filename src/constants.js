@@ -57,5 +57,6 @@ export const STORAGE_KEYS = {
   legacyApiKey: 'quiz.apiKey', // v1 단일 키 — providers.openai.key로 마이그레이션
   userCategories: 'quiz.userCategories',
   recommended: 'quiz.recommended',
+  categoryThemes: 'quiz.categoryThemes',
   stats: 'quiz.stats',
 };

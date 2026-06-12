@@ -39,14 +39,29 @@ export const QUESTION_SYSTEM_PROMPT = `당신은 시사·상식 문제집을 만
 [좋은 출력 예시 — 난이도 '중' 요청 시]
 {"questions":[{"question":"임진왜란 때 진주 촉석루에서 왜장을 안고 남강에 몸을 던진 의기(義妓)는 누구일까요?","answer":"논개","hint":"진주성에서 순국한 기생이에요.","altAnswers":[]},{"question":"빛이 진공에서 1년 동안 나아가는 거리를 나타내는 천문학의 거리 단위는 무엇일까요?","answer":"광년","hint":"별까지의 거리를 잴 때 흔히 쓰는 단위예요.","altAnswers":[]}]}`;
 
-export function buildQuestionUserPrompt({ category, difficulty, count, excludeKeywords = [] }) {
+// 카테고리에 어울리는 시각 테마(이모지·색·패턴) 제안 지시 — 테마가 캐싱되지 않은 카테고리에만 붙인다.
+export const THEME_INSTRUCTION = `
+또한 이 카테고리에 어울리는 시각 테마를 함께 제안하라. 응답 JSON 최상위에 "theme" 객체를 포함하라:
+- emoji: 카테고리를 대표하는 이모지 1개
+- color: 어울리는 HEX 색상 (너무 어둡거나(#000 계열) 너무 밝은(#FFF 계열) 색은 피하고, 채도가 있는 중간 밝기 색)
+- pattern: "grid" | "wave" | "dot" | "square" | "diagonal" 중 카테고리 분위기에 맞는 하나
+형식 예: "theme": { "emoji": "🚀", "color": "#3DA8E0", "pattern": "dot" }`;
+
+export function buildQuestionUserPrompt({
+  category,
+  difficulty,
+  count,
+  excludeKeywords = [],
+  wantTheme = false,
+}) {
   const exclude =
     excludeKeywords.length > 0
       ? ` 다음 키워드를 정답으로 하는 문제는 제외하세요: ${excludeKeywords.join(', ')}.`
       : '';
   return (
     `카테고리: ${category}. 난이도: '${difficulty}'. ${count}문제를 출제하세요. ` +
-    `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.${exclude}`
+    `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.${exclude}` +
+    (wantTheme ? THEME_INSTRUCTION : '')
   );
 }
 
@@ -68,8 +83,12 @@ export function buildReviewUserPrompt({ questions, difficulty }) {
   return `요청 난이도: '${difficulty}'\n검수할 문제 목록:\n${JSON.stringify({ questions })}`;
 }
 
-export const RECOMMEND_SYSTEM_PROMPT =
-  '당신은 퀴즈 카테고리 추천가입니다. 반드시 {"categories":["...","..."]} 형태의 JSON만 출력하세요.';
+export const RECOMMEND_SYSTEM_PROMPT = `당신은 퀴즈 카테고리 추천가입니다. 반드시 아래 형태의 JSON만 출력하세요:
+{"categories":[{"name":"...","theme":{"emoji":"...","color":"#RRGGBB","pattern":"..."}},{"name":"...","theme":{...}}]}
+theme 규칙:
+- emoji: 카테고리를 대표하는 이모지 1개
+- color: 어울리는 HEX 색상 (너무 어둡거나 너무 밝은 색은 피하고, 채도가 있는 중간 밝기 색)
+- pattern: "grid" | "wave" | "dot" | "square" | "diagonal" 중 하나`;
 
 export function buildRecommendUserPrompt(exclude = []) {
   return (

@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useQuestionQueue } from '../hooks/useQuestionQueue.js';
 import { PROVIDERS } from '../constants.js';
+import { getTheme } from '../theme/themes.js';
+import PatternBg from '../components/PatternBg.jsx';
+import CategoryChip from '../components/CategoryChip.jsx';
 
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -24,6 +27,8 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
     category,
     difficulty,
   });
+
+  const theme = getTheme(category);
 
   const finish = (finalTeams) => {
     const list = finalTeams || teams;
@@ -80,7 +85,7 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
         ) : (
           <div className="scoreboard">
             <div className="scoreboard__team scoreboard__team--active">
-              <span className="scoreboard__name">{category}</span>
+              <span className="scoreboard__name">점수</span>
               <span className="scoreboard__score">
                 {teams[0].correct}/{teams[0].attempted}
               </span>
@@ -91,6 +96,10 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
           퀴즈 중지
         </button>
       </header>
+
+      <div className="game-cat-row">
+        <CategoryChip name={category} theme={theme} label={`${category} · ${difficulty}`} small />
+      </div>
 
       {mode === 'team' && (
         <p className="turn-label">
@@ -109,7 +118,10 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
       )}
 
       <main className="question-area">
+        {/* 밝은 문제 카드 위에는 패턴을 매우 옅게(0.06)만 깐다 — 가독성 우선 */}
+        <PatternBg pattern={theme.pattern} color={theme.color} opacity={0.06} toneLightness={40} />
         <p className="question-source">
+          {theme.emoji}{' '}
           {source === 'ai' ? PROVIDERS[aiConfig.provider].sourceLabel : '기본 문제입니다'}
         </p>
         {loading || !current ? (

@@ -3,6 +3,7 @@ import { storage } from '../storage.js';
 import { STORAGE_KEYS, DEFAULT_CATEGORIES } from '../constants.js';
 import { RECOMMENDED_POOL } from '../data/recommendedPool.js';
 import { generateRecommended } from '../ai/index.js';
+import { rememberTheme } from '../theme/themes.js';
 
 function todayStr() {
   const d = new Date();
@@ -50,8 +51,11 @@ export function useRecommended(aiConfig, userCategories) {
       model: aiConfig.model,
       exclude: [...DEFAULT_CATEGORIES, ...userCategories],
     })
-      .then((categories) => {
+      .then((items) => {
         if (cancelled) return;
+        // 추천 생성 시 테마도 함께 받아 캐싱 → 홈 칩에 즉시 이모지·색이 입혀진다
+        items.forEach((item) => item.theme && rememberTheme(item.name, item.theme));
+        const categories = items.map((item) => item.name);
         storage.set(STORAGE_KEYS.recommended, { date: today, categories });
         setRecommended(categories);
       })

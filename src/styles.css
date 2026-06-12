@@ -1,15 +1,19 @@
 :root {
-  --bg: #1a1b26;
-  --bg-card: #24283b;
-  --bg-input: #16161e;
-  --fg: #c0caf5;
+  /* 남보라 배경 + 골드 포인트 톤 */
+  --bg: #141127;
+  --bg-card: #262148;
+  --bg-input: #171331;
+  --fg: #cfc8ee;
   --fg-strong: #ffffff;
-  --fg-dim: #787fa3;
-  --accent: #7aa2f7;
-  --accent-strong: #3d59a1;
-  --correct: #9ece6a;
-  --wrong: #f7768e;
+  --fg-dim: #8d85b5;
+  --gold: #f5b83d;
+  --accent: #f5b83d;
+  --correct: #5dbb72;
+  --wrong: #e0566f;
   --warn: #e0af68;
+  --paper: #fbf8f0;
+  --paper-ink: #2b2342;
+  --paper-dim: #7a7194;
   --radius: 12px;
 }
 
@@ -21,7 +25,9 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: radial-gradient(1100px 700px at 50% -10%, #322a5e 0%, #241e49 45%, #141127 100%);
+  background-attachment: fixed;
   color: var(--fg);
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -108,15 +114,93 @@ body {
 }
 
 .chip--selected {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #16161e;
+  border-color: var(--gold);
+  background: var(--gold);
+  color: #1c1633;
   font-weight: 700;
 }
 
 .chip__badge {
   margin-right: 4px;
 }
+
+/* ── 카테고리 테마 칩 ───────────────────────────── */
+.cat-chip {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+  font-family: inherit;
+}
+
+.cat-chip:active {
+  transform: scale(0.97);
+}
+
+.cat-chip--selected {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.cat-chip--small {
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: default;
+}
+
+.cat-chip__emoji {
+  position: relative;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.cat-chip--small .cat-chip__emoji {
+  font-size: 16px;
+}
+
+.cat-chip__label {
+  position: relative;
+}
+
+.cat-group__header {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fg-dim);
+}
+
+.cat-group__header--gold {
+  color: var(--gold);
+}
+
+.cat-group__sub {
+  font-weight: 400;
+  color: var(--fg-dim);
+  margin-left: 6px;
+}
+
+/* 카드/칩 배경에 까는 SVG 패턴 */
+.pattern-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.game-cat-row {
+  display: flex;
+  justify-content: center;
+}
+
+/* ───────────────────────────────────────────────── */
 
 .stepper {
   display: flex;
@@ -140,6 +224,7 @@ body {
   font-size: 15px;
   cursor: pointer;
   transition: opacity 0.15s;
+  font-family: inherit;
 }
 
 .btn:disabled {
@@ -148,9 +233,9 @@ body {
 }
 
 .btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #16161e;
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1c1633;
   font-weight: 700;
 }
 
@@ -173,14 +258,14 @@ body {
 .btn--correct {
   background: var(--correct);
   border-color: var(--correct);
-  color: #16161e;
+  color: #11250f;
   font-weight: 700;
 }
 
 .btn--wrong {
   background: var(--wrong);
   border-color: var(--wrong);
-  color: #16161e;
+  color: #2c0d14;
   font-weight: 700;
 }
 
@@ -203,7 +288,7 @@ body {
 }
 
 .hint-text a {
-  color: var(--accent);
+  color: var(--gold);
 }
 
 .hint-text--footer {
@@ -237,13 +322,13 @@ body {
 }
 
 .scoreboard__team--active {
-  border-color: var(--accent);
+  border-color: var(--gold);
   color: var(--fg-strong);
 }
 
 .scoreboard__score {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--gold);
 }
 
 .turn-label {
@@ -254,7 +339,7 @@ body {
 }
 
 .turn-label strong {
-  color: var(--accent);
+  color: var(--gold);
 }
 
 .notice {
@@ -278,36 +363,43 @@ body {
   font-size: 14px;
 }
 
+/* 문제 카드 — 밝은 종이색 유지, 카테고리 패턴은 매우 옅게 */
 .question-area {
+  position: relative;
+  overflow: hidden;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: var(--bg-card);
+  background: var(--paper);
   border-radius: var(--radius);
   padding: 24px 20px;
   text-align: center;
 }
 
+.question-area > :not(.pattern-bg) {
+  position: relative;
+}
+
 .question-source {
   font-size: 12px;
-  color: var(--fg-dim);
+  color: var(--paper-dim);
   margin: 0;
 }
 
 .question-text {
   font-size: 22px;
   font-weight: 700;
-  color: var(--fg-strong);
+  color: var(--paper-ink);
   line-height: 1.5;
   margin: 0;
   word-break: keep-all;
 }
 
 .question-text--loading {
-  color: var(--fg-dim);
+  color: var(--paper-dim);
   font-weight: 400;
   animation: pulse 1.2s ease-in-out infinite;
 }
@@ -321,15 +413,15 @@ body {
 .hint-box {
   margin: 0;
   font-size: 15px;
-  color: var(--warn);
-  background: rgba(224, 175, 104, 0.1);
+  color: #8a5d00;
+  background: rgba(197, 144, 32, 0.14);
   border-radius: var(--radius);
   padding: 10px 14px;
 }
 
 .answer-box {
-  background: rgba(158, 206, 106, 0.1);
-  border: 1px solid var(--correct);
+  background: rgba(76, 160, 90, 0.12);
+  border: 1px solid #3c8a4e;
   border-radius: var(--radius);
   padding: 14px 20px;
   width: 100%;
@@ -338,20 +430,20 @@ body {
 .answer-box__label {
   margin: 0 0 4px;
   font-size: 12px;
-  color: var(--correct);
+  color: #2e7d44;
 }
 
 .answer-box__answer {
   margin: 0;
   font-size: 24px;
   font-weight: 800;
-  color: var(--fg-strong);
+  color: #1d1733;
 }
 
 .answer-box__alt {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--fg-dim);
+  color: #6b6488;
 }
 
 .game-footer {
@@ -366,7 +458,7 @@ body {
 }
 
 .result-summary strong {
-  color: var(--accent);
+  color: var(--gold);
 }
 
 .result-row {
@@ -374,7 +466,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 4px;
-  border-bottom: 1px solid rgba(120, 127, 163, 0.2);
+  border-bottom: 1px solid rgba(141, 133, 181, 0.2);
   font-size: 15px;
 }
 
@@ -399,6 +491,17 @@ body {
 }
 
 /* 설정 화면 */
+.field-label {
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+select.input {
+  appearance: none;
+  width: 100%;
+  cursor: pointer;
+}
+
 .input-row {
   display: flex;
   gap: 8px;
@@ -413,22 +516,12 @@ body {
   padding: 10px 12px;
   font-size: 15px;
   min-width: 0;
+  font-family: inherit;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--accent);
-}
-
-.field-label {
-  font-size: 13px;
-  color: var(--fg-dim);
-}
-
-select.input {
-  appearance: none;
-  width: 100%;
-  cursor: pointer;
+  border-color: var(--gold);
 }
 
 .key-row {
@@ -473,7 +566,7 @@ select.input {
   align-items: center;
   justify-content: space-between;
   padding: 6px 4px;
-  border-bottom: 1px solid rgba(120, 127, 163, 0.2);
+  border-bottom: 1px solid rgba(141, 133, 181, 0.2);
 }
 
 .category-list__item:last-child {
@@ -485,5 +578,5 @@ code {
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 13px;
-  color: var(--accent);
+  color: var(--gold);
 }

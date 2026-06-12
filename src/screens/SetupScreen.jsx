@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { DEFAULT_CATEGORIES, DIFFICULTIES } from '../constants.js';
+import { getTheme } from '../theme/themes.js';
+import CategoryChip from '../components/CategoryChip.jsx';
 
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -131,13 +133,54 @@ export default function SetupScreen({
 
       <section className="section">
         <h2 className="section__title">카테고리</h2>
+
+        <p className="cat-group__header">기본</p>
         <div className="chip-row chip-row--wrap">
-          {DEFAULT_CATEGORIES.map((c) => chip(c, category === c, () => setCategory(c)))}
-          {userCategories.map((c) => chip(c, category === c, () => setCategory(c)))}
-          {recommended.map((c) => chip(c, category === c, () => setCategory(c), '✨'))}
+          {DEFAULT_CATEGORIES.map((c) => (
+            <CategoryChip
+              key={c}
+              name={c}
+              theme={getTheme(c)}
+              selected={category === c}
+              onClick={() => setCategory(c)}
+            />
+          ))}
         </div>
+
+        {userCategories.length > 0 && (
+          <>
+            <p className="cat-group__header">내 카테고리</p>
+            <div className="chip-row chip-row--wrap">
+              {userCategories.map((c) => (
+                <CategoryChip
+                  key={c}
+                  name={c}
+                  theme={getTheme(c)}
+                  selected={category === c}
+                  onClick={() => setCategory(c)}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
         {recommended.length > 0 && (
-          <p className="hint-text">✨ 오늘의 추천 카테고리</p>
+          <>
+            <p className="cat-group__header cat-group__header--gold">
+              ✨ 오늘의 추천 <span className="cat-group__sub">하루 1회 변경</span>
+            </p>
+            <div className="chip-row chip-row--wrap">
+              {recommended.map((c) => (
+                <CategoryChip
+                  key={c}
+                  name={c}
+                  theme={getTheme(c)}
+                  selected={category === c}
+                  onClick={() => setCategory(c)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
 

@@ -57,10 +57,11 @@ export async function generateQuestions({
   difficulty,
   count,
   excludeKeywords = [],
+  wantTheme = false,
 }) {
   const adapter = getAdapter(provider);
 
-  // ① 검수 탈락분을 감안해 후보를 여유 있게 생성
+  // ① 검수 탈락분을 감안해 후보를 여유 있게 생성 (필요 시 카테고리 테마도 함께 제안받는다)
   const candidateCount = Math.min(count + 4, 16);
   const generated = await withRateLimitRetry(() =>
     adapter.completeJSON({
@@ -72,9 +73,11 @@ export async function generateQuestions({
         difficulty,
         count: candidateCount,
         excludeKeywords,
+        wantTheme,
       }),
     })
   );
+  const theme = generated?.theme || null;
   let questions = normalizeQuestions(generated);
 
   // ② 문제문/힌트에 정답이 그대로 노출된 문제는 기계적으로 제거
@@ -98,7 +101,7 @@ export async function generateQuestions({
     // 검수 생략
   }
 
-  return questions.slice(0, count);
+  return { questions: questions.slice(0, count), theme };
 }
 
 export async function generateRecommended({ provider, apiKey, model, exclude = [] }) {

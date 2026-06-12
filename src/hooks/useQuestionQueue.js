@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { BATCH_SIZE, PREFETCH_THRESHOLD } from '../constants.js';
 import { generateQuestions, AiError } from '../ai/index.js';
+import { hasTheme, rememberTheme } from '../theme/themes.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -58,7 +59,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty }) {
     if (!fillPromiseRef.current) {
       fillPromiseRef.current = (async () => {
         try {
-          const questions = await generateQuestions({
+          const { questions, theme } = await generateQuestions({
             provider: aiConfig.provider,
             apiKey: aiConfig.apiKey,
             model: aiConfig.model,
@@ -66,7 +67,9 @@ export function useQuestionQueue({ aiConfig, category, difficulty }) {
             difficulty,
             count: BATCH_SIZE,
             excludeKeywords: askedRef.current.slice(-30),
+            wantTheme: !hasTheme(category),
           });
+          if (theme) rememberTheme(category, theme);
           queueRef.current.push(...questions);
         } finally {
           fillPromiseRef.current = null;
