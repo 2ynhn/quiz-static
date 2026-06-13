@@ -17,7 +17,16 @@ import {
   normalizeCategories,
   leaksAnswer,
   applyReview,
+  normalizeForLeak,
 } from './shared.js';
+import { makeDiversityAxes } from '../data/subtopics.js';
+
+// A-3 프로바이더별 샘플링 파라미터 (소재 수렴 방지)
+const SAMPLING = {
+  openai: { temperature: 1.0, presencePenalty: 0.6, frequencyPenalty: 0.3 },
+  anthropic: { temperature: 1.0 },
+  google: { temperature: 1.0 },
+};
 
 const adapters = {
   openai: openaiProvider,
@@ -49,43 +58,48 @@ async function withRateLimitRetry(fn) {
   }
 }
 
-export async function generateQuestions({
-  provider,
-  apiKey,
-  model,
-  category,
-  difficulty,
-  count,
-  excludeKeywords = [],
-  wantTheme = false,
-}) {
-  const adapter = getAdapter(provider);
+// 한 배치 생성 → 정답 노출 기계 필터 → AI 교차 검수. theme도 함께 반환.
+async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme }) {
+  const sampling = SAMPLING[provider] || {};
+  const user = buildQuestionUserPrompt({
+    category,
+    difficulty,
+    count,
+    excludeKeywords,
+    wantTheme,
+    diversity: makeDiversityAxes(category),
+  });
 
-  // ① 검수 탈락분을 감안해 후보를 여유 있게 생성 (필요 시 카테고리 테마도 함께 제안받는다)
-  const candidateCount = Math.min(count + 4, 16);
-  const generated = await withRateLimitRetry(() =>
-    adapter.completeJSON({
-      apiKey,
-      model,
-      system: QUESTION_SYSTEM_PROMPT,
-      user: buildQuestionUserPrompt({
-        category,
-        difficulty,
-        count: candidateCount,
-        excludeKeywords,
-        wantTheme,
-      }),
-    })
-  );
+  // 생성: JSON 파싱 실패 시 temperature를 낮춰 1회 재시도
+  let generated;
+  try {
+    generated = await withRateLimitRetry(() =>
+      adapter.completeJSON({ apiKey, model, system: QUESTION_SYSTEM_PROMPT, user, sampling })
+    );
+  } catch (e) {
+    if (e instanceof AiError && e.type === 'parse') {
+      generated = await withRateLimitRetry(() =>
+        adapter.completeJSON({
+          apiKey,
+          model,
+          system: QUESTION_SYSTEM_PROMPT,
+          user,
+          sampling: { ...sampling, temperature: 0.8 },
+        })
+      );
+    } else {
+      throw e;
+    }
+  }
+
   const theme = generated?.theme || null;
   let questions = normalizeQuestions(generated);
 
-  // ② 문제문/힌트에 정답이 그대로 노출된 문제는 기계적으로 제거
+  // 문제문/힌트에 정답이 그대로 노출된 문제 제거
   const filtered = questions.filter((q) => !leaksAnswer(q));
   if (filtered.length > 0) questions = filtered;
 
-  // ③ 같은 모델을 검수자로 한 번 더 호출해 오답·난이도 이탈·창작 문제를 탈락시킨다.
-  //    검수 호출 자체가 실패하면 1차 결과를 그대로 사용한다 (게임을 막지 않는다).
+  // 같은 모델을 검수자로 재호출해 오답·난이도 이탈·창작 문제를 탈락 (실패 시 1차 결과 유지)
   try {
     const review = await withRateLimitRetry(() =>
       adapter.completeJSON({
@@ -101,7 +115,60 @@ export async function generateQuestions({
     // 검수 생략
   }
 
-  return { questions: questions.slice(0, count), theme };
+  return { questions, theme };
+}
+
+export async function generateQuestions({
+  provider,
+  apiKey,
+  model,
+  category,
+  difficulty,
+  count,
+  excludeKeywords = [],
+  excludeSet = null,
+  wantTheme = false,
+}) {
+  const adapter = getAdapter(provider);
+  // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
+  const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
+  const collected = [];
+  let theme = null;
+  // 검수 탈락·중복 탈락을 감안해 후보를 여유 있게 생성. 부족하면 1회 추가 요청(총 2회).
+  const excludeForPrompt = [...excludeKeywords];
+
+  for (let attempt = 0; attempt < 2 && collected.length < count; attempt += 1) {
+    const candidateCount = Math.min(count + 4, 16);
+    let batch;
+    try {
+      batch = await produceBatch({
+        adapter,
+        provider,
+        apiKey,
+        model,
+        category,
+        difficulty,
+        count: candidateCount,
+        excludeKeywords: excludeForPrompt.slice(-80),
+        wantTheme: wantTheme && attempt === 0,
+      });
+    } catch (e) {
+      if (attempt === 0) throw e; // 첫 호출 실패는 호출부(폴백)로 전파
+      break; // 추가 호출 실패는 모은 만큼 진행
+    }
+    if (batch.theme && !theme) theme = batch.theme;
+
+    for (const q of batch.questions) {
+      const norm = normalizeForLeak(q.answer);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        collected.push(q);
+        excludeForPrompt.push(q.answer);
+      }
+    }
+  }
+
+  return { questions: collected.slice(0, count), theme };
 }
 
 export async function generateRecommended({ provider, apiKey, model, exclude = [] }) {

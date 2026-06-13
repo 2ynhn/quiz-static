@@ -47,15 +47,19 @@ async function callChat(apiKey, body) {
 
 export const openaiProvider = {
   // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환
-  async completeJSON({ apiKey, model, system, user }) {
-    const content = await callChat(apiKey, {
+  async completeJSON({ apiKey, model, system, user, sampling = {} }) {
+    const body = {
       model,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-    });
+    };
+    if (sampling.temperature != null) body.temperature = sampling.temperature;
+    if (sampling.presencePenalty != null) body.presence_penalty = sampling.presencePenalty;
+    if (sampling.frequencyPenalty != null) body.frequency_penalty = sampling.frequencyPenalty;
+    const content = await callChat(apiKey, body);
     return parseJson(content);
   },
 

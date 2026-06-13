@@ -1,9 +1,22 @@
 import { useState } from 'react';
-import { DEFAULT_CATEGORIES, DIFFICULTIES } from '../constants.js';
+import {
+  DEFAULT_CATEGORIES,
+  DIFFICULTIES,
+  STORAGE_KEYS,
+  TIMER_PRESETS,
+  TIMER_MIN,
+  TIMER_MAX,
+} from '../constants.js';
+import { storage } from '../storage.js';
 import { getTheme } from '../theme/themes.js';
 import CategoryChip from '../components/CategoryChip.jsx';
 
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function clampTimer(n) {
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(TIMER_MIN, Math.min(TIMER_MAX, Math.round(n)));
+}
 
 export default function SetupScreen({
   hasApiKey,
@@ -18,6 +31,14 @@ export default function SetupScreen({
   const [consecutiveCount, setConsecutiveCount] = useState(3);
   const [difficulty, setDifficulty] = useState('중');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
+  // 제한시간: 0=없음, 1~30초. localStorage에 기억
+  const [timerSec, setTimerSecState] = useState(() => clampTimer(storage.get(STORAGE_KEYS.timerSec, 0)));
+
+  const setTimerSec = (n) => {
+    const v = clampTimer(n);
+    storage.set(STORAGE_KEYS.timerSec, v);
+    setTimerSecState(v);
+  };
 
   const start = () => {
     onStart({
@@ -27,6 +48,7 @@ export default function SetupScreen({
       consecutiveCount,
       difficulty,
       category,
+      timerSec,
     });
   };
 
@@ -129,6 +151,29 @@ export default function SetupScreen({
         <div className="chip-row">
           {DIFFICULTIES.map((d) => chip(d, difficulty === d, () => setDifficulty(d)))}
         </div>
+      </section>
+
+      <section className="section">
+        <h2 className="section__title">제한시간</h2>
+        <div className="chip-row chip-row--wrap">
+          {TIMER_PRESETS.map((sec) =>
+            chip(sec === 0 ? '없음' : `${sec}초`, timerSec === sec, () => setTimerSec(sec))
+          )}
+          <input
+            type="number"
+            className="input input--timer"
+            min={TIMER_MIN}
+            max={TIMER_MAX}
+            placeholder="직접"
+            value={!TIMER_PRESETS.includes(timerSec) && timerSec > 0 ? timerSec : ''}
+            onChange={(e) => setTimerSec(Number(e.target.value))}
+          />
+        </div>
+        <p className="hint-text">
+          {timerSec > 0
+            ? `문제당 ${timerSec}초. 시간이 다 되면 자동으로 정답 공개 후 오답 처리됩니다.`
+            : '제한시간 없이 천천히 풀 수 있어요.'}
+        </p>
       </section>
 
       <section className="section">

@@ -53,14 +53,33 @@ export function buildQuestionUserPrompt({
   count,
   excludeKeywords = [],
   wantTheme = false,
+  diversity = null,
 }) {
+  // A-1 누적 제외 목록 — 정답·소재 모두 반복 금지
   const exclude =
     excludeKeywords.length > 0
-      ? ` 다음 키워드를 정답으로 하는 문제는 제외하세요: ${excludeKeywords.join(', ')}.`
+      ? `\n다음 정답들은 이미 출제되었으니 절대 반복하지 마라:\n${excludeKeywords.join(', ')}\n` +
+        '위 목록과 정답이 같거나, 핵심 소재·주제가 겹치는 문제도 출제하지 마라.'
       : '';
+
+  // A-2 다양성 축 — 시드 + 세부주제 + 관점 로테이션
+  let axes = '';
+  if (diversity) {
+    const parts = [`\n이번 배치 다양성 시드: ${diversity.seed}. 이 시드에 맞춰 평소와 다른 소재를 선택하라.`];
+    if (diversity.subtopics?.length) {
+      parts.push(`이번 배치는 다음 세부 주제 위주로 출제하라: ${diversity.subtopics.join(', ')}.`);
+    }
+    if (diversity.perspective) {
+      parts.push(`이번 배치는 '${diversity.perspective}' 관점으로 출제하라.`);
+    }
+    axes = parts.join('\n');
+  }
+
   return (
     `카테고리: ${category}. 난이도: '${difficulty}'. ${count}문제를 출제하세요. ` +
-    `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.${exclude}` +
+    `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.` +
+    exclude +
+    axes +
     (wantTheme ? THEME_INSTRUCTION : '')
   );
 }

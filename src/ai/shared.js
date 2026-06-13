@@ -47,7 +47,8 @@ export function normalizeCategories(parsed) {
 
 // ── 기계적 품질 필터 ──────────────────────────────────────────
 
-function normalizeForLeak(s) {
+// 정답 비교용 정규화: 소문자화 + 공백·문장부호 제거 ("훈민정음" vs "훈민 정음" 동일 취급)
+export function normalizeForLeak(s) {
   return String(s)
     .toLowerCase()
     .replace(/[\s·\-‧.,'"“”‘’()[\]?!~]/g, '');

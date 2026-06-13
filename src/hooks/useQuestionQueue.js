@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { BATCH_SIZE, PREFETCH_THRESHOLD } from '../constants.js';
 import { generateQuestions, AiError } from '../ai/index.js';
 import { hasTheme, rememberTheme } from '../theme/themes.js';
+import { getAskedForPrompt, getAskedSet, addAsked } from '../data/askedAnswers.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -25,7 +26,6 @@ export function useQuestionQueue({ aiConfig, category, difficulty }) {
   const [notice, setNotice] = useState(null);
 
   const queueRef = useRef([]);
-  const askedRef = useRef([]); // 출제된 정답 키워드 → 중복 방지 제외 목록
   const fillPromiseRef = useRef(null);
   const initRef = useRef(false);
   const fallbackPileRef = useRef([]);
@@ -66,7 +66,9 @@ export function useQuestionQueue({ aiConfig, category, difficulty }) {
             category,
             difficulty,
             count: BATCH_SIZE,
-            excludeKeywords: askedRef.current.slice(-30),
+            // A-1 누적 제외 목록: 프롬프트엔 최근 80개, 클라이언트 필터엔 전체 정규화 집합
+            excludeKeywords: getAskedForPrompt(category, difficulty),
+            excludeSet: getAskedSet(category, difficulty),
             wantTheme: !hasTheme(category),
           });
           if (theme) rememberTheme(category, theme);
@@ -94,7 +96,8 @@ export function useQuestionQueue({ aiConfig, category, difficulty }) {
       }
       const q = queueRef.current.shift();
       if (q) {
-        askedRef.current.push(q.answer);
+        // 출제 시점에 정답을 누적 기록 → 시간초과·스킵 포함 모든 출제가 다음 배치에서 제외됨
+        addAsked(category, difficulty, [q.answer]);
         setCurrent(q);
         setLoading(false);
         if (queueRef.current.length <= PREFETCH_THRESHOLD) {

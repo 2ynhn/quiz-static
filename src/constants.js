@@ -58,5 +58,16 @@ export const STORAGE_KEYS = {
   userCategories: 'quiz.userCategories',
   recommended: 'quiz.recommended',
   categoryThemes: 'quiz.categoryThemes',
+  askedAnswers: 'quiz.askedAnswers', // 중복 회피: { "카테고리_난이도": [정답...] }
+  timerSec: 'quiz.timerSec', // 0 = 타이머 없음, 1~30 = 제한 초
   stats: 'quiz.stats',
 };
+
+// 중복 회피 누적 제외 목록 — 키당 최대 보관 개수 / 프롬프트 전달 개수
+export const ASKED_MAX_PER_KEY = 100;
+export const ASKED_PROMPT_LIMIT = 80;
+
+// 타이머 제한시간 프리셋(초). 0 = 사용 안 함
+export const TIMER_PRESETS = [0, 10, 15, 20, 30];
+export const TIMER_MIN = 1;
+export const TIMER_MAX = 30;

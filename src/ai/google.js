@@ -49,11 +49,13 @@ async function callGenerate(apiKey, model, body) {
 
 export const googleProvider = {
   // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환
-  async completeJSON({ apiKey, model, system, user }) {
+  async completeJSON({ apiKey, model, system, user, sampling = {} }) {
+    const generationConfig = { responseMimeType: 'application/json' };
+    if (sampling.temperature != null) generationConfig.temperature = sampling.temperature;
     const text = await callGenerate(apiKey, model, {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      generationConfig,
     });
     return parseJson(text);
   },

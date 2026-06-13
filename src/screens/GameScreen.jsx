@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuestionQueue } from '../hooks/useQuestionQueue.js';
+import { useCountdown } from '../hooks/useCountdown.js';
 import { PROVIDERS } from '../constants.js';
 import { getTheme } from '../theme/themes.js';
 import PatternBg from '../components/PatternBg.jsx';
 import CategoryChip from '../components/CategoryChip.jsx';
+import CountdownBar from '../components/CountdownBar.jsx';
 
 const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export default function GameScreen({ config, aiConfig, onFinish }) {
   const { mode, teamCount, turnMode, consecutiveCount, difficulty, category } = config;
+  const timerSec = config.timerSec || 0;
 
   const [teams, setTeams] = useState(() =>
     Array.from({ length: mode === 'team' ? teamCount : 1 }, (_, i) => ({
@@ -21,6 +24,8 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
   const [streak, setStreak] = useState(0); // 연속 출제 모드에서 현재 팀이 푼 문제 수
   const [revealed, setRevealed] = useState(false);
   const [hintShown, setHintShown] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const autoAdvanceRef = useRef(null);
 
   const { current, source, loading, notice, advance, dismissNotice } = useQuestionQueue({
     aiConfig,
@@ -30,7 +35,18 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
 
   const theme = getTheme(category);
 
+  const clearAutoAdvance = () => {
+    if (autoAdvanceRef.current) {
+      clearTimeout(autoAdvanceRef.current);
+      autoAdvanceRef.current = null;
+    }
+  };
+
+  // 언마운트 시 자동 진행 타이머 정리
+  useEffect(() => clearAutoAdvance, []);
+
   const finish = (finalTeams) => {
+    clearAutoAdvance();
     const list = finalTeams || teams;
     onFinish({
       mode,
@@ -41,6 +57,7 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
   };
 
   const judge = (isCorrect) => {
+    clearAutoAdvance();
     const nextTeams = teams.map((t, i) =>
       i === turnIdx
         ? { ...t, correct: t.correct + (isCorrect ? 1 : 0), attempted: t.attempted + 1 }
@@ -64,8 +81,22 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
 
     setRevealed(false);
     setHintShown(false);
+    setTimedOut(false);
     advance();
   };
+
+  // 타이머: 문제 표시 중(로딩·정답확인 전)에만 가동. 0 도달 시 정답 공개 + 자동 오답 + 자동 진행
+  const timerActive = timerSec > 0 && !!current && !loading && !revealed;
+  const remaining = useCountdown({
+    seconds: timerSec,
+    active: timerActive,
+    resetKey: current?.question,
+    onExpire: () => {
+      setRevealed(true);
+      setTimedOut(true);
+      autoAdvanceRef.current = setTimeout(() => judge(false), 1600);
+    },
+  });
 
   return (
     <div className="screen screen--game">
@@ -132,6 +163,7 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
             {hintShown && current.hint && (
               <p className="hint-box">💡 {current.hint}</p>
             )}
+            {timedOut && <p className="timeout-flash">⏱ 시간 초과!</p>}
             {revealed && (
               <div className="answer-box">
                 <p className="answer-box__label">정답</p>
@@ -145,8 +177,16 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
         )}
       </main>
 
+      {timerActive && <CountdownBar remaining={remaining} total={timerSec} />}
+
       <footer className="game-footer">
-        {!revealed ? (
+        {timedOut ? (
+          <div className="btn-row">
+            <button type="button" className="btn" disabled>
+              시간 초과 — 다음 문제로 넘어갑니다…
+            </button>
+          </div>
+        ) : !revealed ? (
           <div className="btn-row">
             <button
               type="button"

@@ -53,14 +53,16 @@ async function callMessages(apiKey, body) {
 }
 
 export const anthropicProvider = {
-  // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환
-  async completeJSON({ apiKey, model, system, user }) {
-    const text = await callMessages(apiKey, {
+  // system+user 한 쌍을 보내고 JSON 객체로 파싱해 반환 (penalty 파라미터 없음 → temperature만)
+  async completeJSON({ apiKey, model, system, user, sampling = {} }) {
+    const body = {
       model,
       max_tokens: 4096,
       system,
       messages: [{ role: 'user', content: user }],
-    });
+    };
+    if (sampling.temperature != null) body.temperature = sampling.temperature;
+    const text = await callMessages(apiKey, body);
     return parseJson(text);
   },
 

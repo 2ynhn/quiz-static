@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { validateKey, AiError } from '../ai/index.js';
 import { PROVIDERS, PROVIDER_IDS } from '../constants.js';
+import { countAsked, clearAsked } from '../data/askedAnswers.js';
 
 export default function SettingsScreen({
   provider,
@@ -17,6 +18,7 @@ export default function SettingsScreen({
   const [keyStatus, setKeyStatus] = useState(null); // { ok, message }
   const [validating, setValidating] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [askedCount, setAskedCount] = useState(() => countAsked());
 
   const meta = PROVIDERS[provider];
   const entry = providerSettings[provider];
@@ -195,6 +197,25 @@ export default function SettingsScreen({
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="section">
+        <h2 className="section__title">출제 기록</h2>
+        <p className="hint-text">
+          중복을 피하기 위해 출제된 정답을 기억합니다. (현재 {askedCount}개) 문제가 너무 소진되면
+          초기화하세요.
+        </p>
+        <button
+          type="button"
+          className="btn btn--small btn--wrong"
+          disabled={askedCount === 0}
+          onClick={() => {
+            clearAsked();
+            setAskedCount(0);
+          }}
+        >
+          출제 기록 초기화
+        </button>
       </section>
 
       <p className="hint-text hint-text--footer">

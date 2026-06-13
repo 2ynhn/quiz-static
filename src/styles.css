@@ -446,8 +446,65 @@ body {
   color: #6b6488;
 }
 
+/* 풀이 타이머 카운트다운 바 */
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.countdown__track {
+  flex: 1;
+  height: 8px;
+  background: rgba(141, 133, 181, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.countdown__fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 999px;
+}
+
+.countdown__fill--warn {
+  background: var(--wrong);
+}
+
+.countdown__num {
+  min-width: 28px;
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.countdown__num--warn {
+  color: var(--wrong);
+}
+
+.timeout-flash {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--wrong);
+}
+
+.input--timer {
+  flex: 0 0 72px;
+  width: 72px;
+  text-align: center;
+}
+
 .game-footer {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* prefers-reduced-motion: 바 채움은 폭만 갱신(애니메이션 없음), 숫자 카운트 위주 */
+@media (prefers-reduced-motion: reduce) {
+  .countdown__fill {
+    transition: none;
+  }
 }
 
 /* 결과 화면 */
