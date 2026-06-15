@@ -134,11 +134,13 @@ export async function generateQuestions({
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
   const collected = [];
   let theme = null;
-  // 검수 탈락·중복 탈락을 감안해 후보를 여유 있게 생성. 부족하면 1회 추가 요청(총 2회).
+  // 검수·중복 탈락을 감안해 소량 여유분만 생성하고, 살아남은 문제는 전부 반환해
+  // 호출부(큐)가 버퍼링한다. 0개면 1회만 추가 요청(총 2회).
   const excludeForPrompt = [...excludeKeywords];
 
   for (let attempt = 0; attempt < 2 && collected.length < count; attempt += 1) {
-    const candidateCount = Math.min(count + 4, 16);
+    // count(보통 1) + 검수 여유분 2개 → 첫 응답을 작게 유지해 빠르게 띄운다
+    const candidateCount = Math.min(Math.max(count + 2, 3), 12);
     let batch;
     try {
       batch = await produceBatch({
@@ -168,7 +170,8 @@ export async function generateQuestions({
     }
   }
 
-  return { questions: collected.slice(0, count), theme };
+  // 살아남은 후보를 전부 반환 → 큐가 버퍼링하여 다음 문제는 API 호출 없이 즉시 소비
+  return { questions: collected, theme };
 }
 
 export async function generateRecommended({ provider, apiKey, model, exclude = [] }) {

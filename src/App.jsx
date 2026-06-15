@@ -101,9 +101,6 @@ export default function App() {
         providerSettings={providerSettings}
         onSaveKey={(id, key) => updateProviderEntry(id, { key })}
         onDeleteKey={(id) => updateProviderEntry(id, { key: '' })}
-        onChangeModel={(id, model) => updateProviderEntry(id, { model })}
-        userCategories={userCategories}
-        onChangeUserCategories={setUserCategories}
         onBack={() => setScreen('setup')}
       />
     );
@@ -111,8 +108,12 @@ export default function App() {
 
   return (
     <SetupScreen
-      hasApiKey={Boolean(aiConfig.apiKey)}
+      provider={provider}
+      providerSettings={providerSettings}
+      onChangeProvider={setProvider}
+      onChangeModel={(id, model) => updateProviderEntry(id, { model })}
       userCategories={userCategories}
+      onChangeUserCategories={setUserCategories}
       recommended={recommended}
       onStart={(config) => {
         setGameConfig(config);

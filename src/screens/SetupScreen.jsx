@@ -6,6 +6,8 @@ import {
   TIMER_PRESETS,
   TIMER_MIN,
   TIMER_MAX,
+  PROVIDERS,
+  PROVIDER_IDS,
 } from '../constants.js';
 import { storage } from '../storage.js';
 import { getTheme } from '../theme/themes.js';
@@ -19,8 +21,12 @@ function clampTimer(n) {
 }
 
 export default function SetupScreen({
-  hasApiKey,
+  provider,
+  providerSettings,
+  onChangeProvider,
+  onChangeModel,
   userCategories,
+  onChangeUserCategories,
   recommended,
   onStart,
   onOpenSettings,
@@ -30,9 +36,13 @@ export default function SetupScreen({
   const [turnMode, setTurnMode] = useState('alternate'); // alternate | consecutive
   const [consecutiveCount, setConsecutiveCount] = useState(3);
   const [difficulty, setDifficulty] = useState('중');
-  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
+  const [category, setCategory] = useState(null); // 기본 선택 없음 — 선택해야 시작 가능
+  const [newCategory, setNewCategory] = useState('');
   // 제한시간: 0=없음, 1~30초. localStorage에 기억
   const [timerSec, setTimerSecState] = useState(() => clampTimer(storage.get(STORAGE_KEYS.timerSec, 0)));
+
+  const hasApiKey = Boolean(providerSettings[provider]?.key);
+  const meta = PROVIDERS[provider];
 
   const setTimerSec = (n) => {
     const v = clampTimer(n);
@@ -40,7 +50,21 @@ export default function SetupScreen({
     setTimerSecState(v);
   };
 
+  const addCategory = () => {
+    const name = newCategory.trim();
+    if (!name || userCategories.includes(name) || DEFAULT_CATEGORIES.includes(name)) return;
+    onChangeUserCategories([...userCategories, name]);
+    setNewCategory('');
+  };
+
+  const removeCategory = (name) => {
+    if (!window.confirm(`'${name}' 카테고리를 삭제할까요?`)) return;
+    onChangeUserCategories(userCategories.filter((x) => x !== name));
+    if (category === name) setCategory(null);
+  };
+
   const start = () => {
+    if (!category) return;
     onStart({
       mode,
       teamCount: mode === 'team' ? teamCount : 1,
@@ -75,7 +99,7 @@ export default function SetupScreen({
 
       {!hasApiKey && (
         <button type="button" className="banner" onClick={onOpenSettings}>
-          🔑 API 키를 등록하면 AI 생성 문제를 사용할 수 있어요 →
+          🔑 {meta.label} API 키를 등록하면 AI 생성 문제를 사용할 수 있어요 →
         </button>
       )}
 
@@ -154,6 +178,31 @@ export default function SetupScreen({
       </section>
 
       <section className="section">
+        <h2 className="section__title">AI 모델</h2>
+        <div className="chip-row chip-row--wrap">
+          {PROVIDER_IDS.map((id) =>
+            chip(
+              PROVIDERS[id].label,
+              provider === id,
+              () => onChangeProvider(id),
+              providerSettings[id]?.key ? '🔑' : undefined
+            )
+          )}
+        </div>
+        <select
+          className="input"
+          value={providerSettings[provider].model}
+          onChange={(e) => onChangeModel(provider, e.target.value)}
+        >
+          {meta.models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section className="section">
         <h2 className="section__title">제한시간</h2>
         <div className="chip-row chip-row--wrap">
           {TIMER_PRESETS.map((sec) =>
@@ -192,22 +241,47 @@ export default function SetupScreen({
           ))}
         </div>
 
+        <p className="cat-group__header">내 카테고리</p>
         {userCategories.length > 0 && (
-          <>
-            <p className="cat-group__header">내 카테고리</p>
-            <div className="chip-row chip-row--wrap">
-              {userCategories.map((c) => (
+          <ul className="my-cat-list">
+            {userCategories.map((c) => (
+              <li key={c} className="my-cat-row">
                 <CategoryChip
-                  key={c}
                   name={c}
                   theme={getTheme(c)}
                   selected={category === c}
                   onClick={() => setCategory(c)}
                 />
-              ))}
-            </div>
-          </>
+                <button
+                  type="button"
+                  className="my-cat-row__del"
+                  aria-label={`${c} 삭제`}
+                  onClick={() => removeCategory(c)}
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+        <div className="input-row">
+          <input
+            type="text"
+            className="input"
+            placeholder="예: 90년대 가요"
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+          />
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={!newCategory.trim()}
+            onClick={addCategory}
+          >
+            추가
+          </button>
+        </div>
 
         {recommended.length > 0 && (
           <>
@@ -229,8 +303,13 @@ export default function SetupScreen({
         )}
       </section>
 
-      <button type="button" className="btn btn--primary btn--big" onClick={start}>
-        퀴즈 시작
+      <button
+        type="button"
+        className="btn btn--primary btn--big"
+        disabled={!category}
+        onClick={start}
+      >
+        {category ? '퀴즈 시작' : '카테고리를 선택하세요'}
       </button>
     </div>
   );

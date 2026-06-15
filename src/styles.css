@@ -77,11 +77,13 @@ body {
 
 .section {
   background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: var(--radius);
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
 }
 
 .section__title {
@@ -184,6 +186,40 @@ body {
   font-weight: 400;
   color: var(--fg-dim);
   margin-left: 6px;
+}
+
+/* 내 카테고리 — 1행 = 선택 칩 + 우측 삭제 버튼 */
+.my-cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.my-cat-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.my-cat-row .cat-chip {
+  flex: 1;
+  cursor: pointer;
+}
+
+.my-cat-row__del {
+  flex: 0 0 auto;
+  border: 1px solid var(--wrong);
+  background: transparent;
+  color: var(--wrong);
+  border-radius: var(--radius);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 /* 카드/칩 배경에 까는 SVG 패턴 */

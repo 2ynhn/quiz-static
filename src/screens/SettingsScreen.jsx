@@ -9,15 +9,11 @@ export default function SettingsScreen({
   providerSettings,
   onSaveKey,
   onDeleteKey,
-  onChangeModel,
-  userCategories,
-  onChangeUserCategories,
   onBack,
 }) {
   const [keyInput, setKeyInput] = useState('');
   const [keyStatus, setKeyStatus] = useState(null); // { ok, message }
   const [validating, setValidating] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
   const [askedCount, setAskedCount] = useState(() => countAsked());
 
   const meta = PROVIDERS[provider];
@@ -49,13 +45,6 @@ export default function SettingsScreen({
     }
   };
 
-  const addCategory = () => {
-    const name = newCategory.trim();
-    if (!name || userCategories.includes(name)) return;
-    onChangeUserCategories([...userCategories, name]);
-    setNewCategory('');
-  };
-
   return (
     <div className="screen">
       <header className="screen__header">
@@ -80,22 +69,7 @@ export default function SettingsScreen({
             </button>
           ))}
         </div>
-
-        <label className="field-label" htmlFor="model-select">
-          모델
-        </label>
-        <select
-          id="model-select"
-          className="input"
-          value={entry.model}
-          onChange={(e) => onChangeModel(provider, e.target.value)}
-        >
-          {meta.models.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
+        <p className="hint-text">모델 선택은 홈 화면의 'AI 모델'에서 할 수 있어요.</p>
 
         {entry.key ? (
           <div className="key-row">
@@ -157,46 +131,6 @@ export default function SettingsScreen({
             🔗 사용량 대시보드
           </a>
         </p>
-      </section>
-
-      <section className="section">
-        <h2 className="section__title">사용자 카테고리</h2>
-        <div className="input-row">
-          <input
-            type="text"
-            className="input"
-            placeholder="예: 90년대 가요"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-          />
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={!newCategory.trim()}
-            onClick={addCategory}
-          >
-            추가
-          </button>
-        </div>
-        {userCategories.length === 0 ? (
-          <p className="hint-text">추가한 카테고리가 없습니다.</p>
-        ) : (
-          <ul className="category-list">
-            {userCategories.map((c) => (
-              <li key={c} className="category-list__item">
-                <span>{c}</span>
-                <button
-                  type="button"
-                  className="btn btn--small btn--ghost"
-                  onClick={() => onChangeUserCategories(userCategories.filter((x) => x !== c))}
-                >
-                  삭제
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section className="section">

@@ -2,8 +2,10 @@ export const DEFAULT_CATEGORIES = ['일반상식', '사자성어', '한국사', 
 
 export const DIFFICULTIES = ['상', '중', '하'];
 
-export const BATCH_SIZE = 10;
-export const PREFETCH_THRESHOLD = 3;
+// 첫 문제를 빠르게 띄우기 위해 한 번에 1문제(검수 여유분 포함 소량)만 요청하고,
+// 푸는 동안 다음 문제를 백그라운드로 선행 로딩한다.
+export const BATCH_SIZE = 1;
+export const PREFETCH_THRESHOLD = 1;
 
 // provider 어댑터 메타데이터 — 어댑터 구현은 src/ai/ 아래에 1:1로 존재한다.
 export const PROVIDERS = {
