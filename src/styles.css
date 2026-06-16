@@ -309,6 +309,28 @@ body {
   margin-top: auto;
 }
 
+/* 홈 화면 하단 고정 시작 버튼 */
+.screen--setup {
+  padding-bottom: calc(86px + env(safe-area-inset-bottom));
+}
+
+.start-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 560px;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 72%, rgba(20, 17, 39, 0));
+  z-index: 20;
+}
+
+.start-bar .btn--big {
+  margin-top: 0;
+  width: 100%;
+}
+
 .btn--small {
   padding: 6px 12px;
   font-size: 13px;

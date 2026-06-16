@@ -63,6 +63,7 @@ export const STORAGE_KEYS = {
   categoryThemes: 'quiz.categoryThemes',
   askedAnswers: 'quiz.askedAnswers', // 중복 회피: { "카테고리_난이도": [정답...] }
   timerSec: 'quiz.timerSec', // 0 = 타이머 없음, 1~30 = 제한 초
+  setup: 'quiz.setup', // 홈 화면에서 마지막으로 선택한 옵션들
   stats: 'quiz.stats',
 };
 

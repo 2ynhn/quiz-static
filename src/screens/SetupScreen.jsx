@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DEFAULT_CATEGORIES,
   DIFFICULTIES,
@@ -20,6 +20,12 @@ function clampTimer(n) {
   return Math.max(TIMER_MIN, Math.min(TIMER_MAX, Math.round(n)));
 }
 
+// 홈 화면에서 마지막으로 선택한 옵션들을 복원(없으면 기본값)
+const savedSetup = (() => {
+  const s = storage.get(STORAGE_KEYS.setup, {});
+  return s && typeof s === 'object' ? s : {};
+})();
+
 export default function SetupScreen({
   provider,
   providerSettings,
@@ -33,12 +39,17 @@ export default function SetupScreen({
   onStart,
   onOpenSettings,
 }) {
-  const [mode, setMode] = useState('solo'); // solo | team
-  const [teamCount, setTeamCount] = useState(2);
-  const [turnMode, setTurnMode] = useState('alternate'); // alternate | consecutive
-  const [consecutiveCount, setConsecutiveCount] = useState(3);
-  const [difficulty, setDifficulty] = useState('중');
-  const [category, setCategory] = useState(null); // 기본 선택 없음 — 선택해야 시작 가능
+  const [mode, setMode] = useState(savedSetup.mode === 'team' ? 'team' : 'solo');
+  const [teamCount, setTeamCount] = useState(savedSetup.teamCount || 2);
+  const [turnMode, setTurnMode] = useState(
+    savedSetup.turnMode === 'consecutive' ? 'consecutive' : 'alternate'
+  );
+  const [consecutiveCount, setConsecutiveCount] = useState(savedSetup.consecutiveCount || 3);
+  const [difficulty, setDifficulty] = useState(
+    DIFFICULTIES.includes(savedSetup.difficulty) ? savedSetup.difficulty : '중'
+  );
+  // 마지막 선택 카테고리 복원(처음엔 null → 선택해야 시작 가능)
+  const [category, setCategory] = useState(savedSetup.category || null);
   const [newCategory, setNewCategory] = useState('');
   const [newTypeHint, setNewTypeHint] = useState('');
   // 제한시간: 0=없음, 1~30초. localStorage에 기억
@@ -46,6 +57,30 @@ export default function SetupScreen({
 
   const hasApiKey = Boolean(providerSettings[provider]?.key);
   const meta = PROVIDERS[provider];
+
+  // 선택 옵션 변경 시 localStorage에 저장 → 다음에 홈으로 오면 복원
+  useEffect(() => {
+    storage.set(STORAGE_KEYS.setup, {
+      mode,
+      teamCount,
+      turnMode,
+      consecutiveCount,
+      difficulty,
+      category,
+    });
+  }, [mode, teamCount, turnMode, consecutiveCount, difficulty, category]);
+
+  // 복원된 카테고리가 더 이상 존재하지 않으면(삭제됨 등) 선택 해제
+  useEffect(() => {
+    if (
+      category &&
+      !DEFAULT_CATEGORIES.includes(category) &&
+      !userCategories.includes(category) &&
+      !recommended.includes(category)
+    ) {
+      setCategory(null);
+    }
+  }, [category, userCategories, recommended]);
 
   const setTimerSec = (n) => {
     const v = clampTimer(n);
@@ -101,7 +136,7 @@ export default function SetupScreen({
   );
 
   return (
-    <div className="screen">
+    <div className="screen screen--setup">
       <header className="screen__header">
         <h1 className="title">상식 퀴즈 풀기</h1>
         <button type="button" className="btn btn--ghost" onClick={onOpenSettings}>
@@ -333,14 +368,16 @@ export default function SetupScreen({
         )}
       </section>
 
-      <button
-        type="button"
-        className="btn btn--primary btn--big"
-        disabled={!category}
-        onClick={start}
-      >
-        {category ? '퀴즈 시작' : '카테고리를 선택하세요'}
-      </button>
+      <div className="start-bar">
+        <button
+          type="button"
+          className="btn btn--primary btn--big"
+          disabled={!category}
+          onClick={start}
+        >
+          {category ? '퀴즈 시작' : '카테고리를 선택하세요'}
+        </button>
+      </div>
     </div>
   );
 }
