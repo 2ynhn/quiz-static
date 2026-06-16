@@ -138,18 +138,18 @@ export function buildReviewUserPrompt({ questions, difficulty }) {
   return `요청 난이도: '${difficulty}'\n검수할 문제 목록:\n${JSON.stringify({ questions })}`;
 }
 
-// 글로벌 Trivia(영어) → 한국어 주관식 번역. 사실은 원문 그대로, 표현만 한국어로.
-export const TRANSLATE_SYSTEM_PROMPT = `당신은 영어 상식 퀴즈를 한국어 주관식 퀴즈로 옮기는 전문 번역가입니다.
+// 글로벌 Trivia(영어) → 한국어 객관식 퀴즈로 번역. 사실은 원문 그대로, 표현만 한국어로.
+export const TRANSLATE_SYSTEM_PROMPT = `당신은 영어 상식 퀴즈를 한국어 객관식 퀴즈로 옮기는 전문 번역가입니다.
 - 원문의 사실·정답을 절대 바꾸지 말고 자연스러운 한국어로 번역하세요(의역은 허용, 사실 왜곡은 금지).
-- 보기 선택형으로 쓰인 문제는 보기 없이 답을 직접 떠올리는 주관식으로 자연스럽게 바꾸세요.
+- 정답(answer)과 오답 보기(incorrect)를 모두 한국어로 번역해 choices 배열(정답+오답, 총 보기 전체)에 담으세요. answer는 choices 안에 반드시 포함되어야 합니다.
 - 정답이 고유명사(인물·지명·작품 등)면 한국에서 통용되는 표기를 쓰세요.
-- 반드시 {"questions":[{"question":"...","answer":"...","hint":"...","altAnswers":["..."]}]} 형태의 JSON만 출력하세요.`;
+- 반드시 {"questions":[{"question":"...","answer":"...","choices":["...","..."],"hint":"...","altAnswers":["..."]}]} 형태의 JSON만 출력하세요.`;
 
 export function buildTranslateUserPrompt(items) {
   return (
-    '다음 영어 문제들을 한국어로 번역하세요. 각 항목마다 ' +
-    'question(한국어 문제문), answer(한국어 정답), hint(정답을 노출하지 않는 짧은 한국어 단서), ' +
-    'altAnswers(정답의 다른 한국어 표기 배열, 없으면 [])를 채우세요.\n' +
+    '다음 영어 객관식 문제들을 한국어로 번역하세요. 각 항목마다 ' +
+    'question(한국어 문제문), answer(한국어 정답), choices(정답과 오답을 모두 번역한 보기 배열), ' +
+    'hint(정답을 노출하지 않는 짧은 한국어 단서), altAnswers(정답의 다른 한국어 표기, 없으면 [])를 채우세요.\n' +
     JSON.stringify({ items })
   );
 }

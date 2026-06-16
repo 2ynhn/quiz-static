@@ -24,7 +24,39 @@ export function normalizeQuestions(parsed) {
     answer: String(q.answer),
     hint: q.hint ? String(q.hint) : '',
     altAnswers: Array.isArray(q.altAnswers) ? q.altAnswers.map(String) : [],
+    ...(Array.isArray(q.choices)
+      ? { choices: q.choices.map((c) => String(c).trim()).filter(Boolean) }
+      : {}),
   }));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 객관식 보기 확정: 정답 포함 + 중복 제거 + 섞기. 보기 2개 미만이면 choices 제거(주관식).
+export function finalizeChoices(q) {
+  const merged = [q.answer, ...(q.choices || [])];
+  const seen = new Set();
+  const out = [];
+  for (const c of merged) {
+    const v = String(c).trim();
+    const k = v.toLowerCase();
+    if (v && !seen.has(k)) {
+      seen.add(k);
+      out.push(v);
+    }
+  }
+  if (out.length < 2) {
+    const { choices, ...rest } = q;
+    return rest;
+  }
+  return { ...q, choices: shuffle(out) };
 }
 
 // 추천 응답은 [{name, theme}] 형태로 정규화 — 문자열 배열(구 스키마)도 허용

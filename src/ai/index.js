@@ -20,6 +20,7 @@ import {
   leaksAnswer,
   applyReview,
   normalizeForLeak,
+  finalizeChoices,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
 import { parseMaskTemplate, applyMask } from '../mask.js';
@@ -55,13 +56,13 @@ async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, s
   } catch {
     return null;
   }
-  // 누적 제외 + 배치 내 중복 필터
+  // 누적 제외 + 배치 내 중복 필터 + 객관식 보기 확정(정답 포함·섞기)
   const out = [];
   for (const q of questions) {
     const norm = normalizeForLeak(q.answer);
     if (norm && !seen.has(norm)) {
       seen.add(norm);
-      out.push(q);
+      out.push(finalizeChoices(q));
     }
   }
   return out.length > 0 ? out : null;

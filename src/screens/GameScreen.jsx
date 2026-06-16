@@ -162,6 +162,21 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
         ) : (
           <>
             <p className="question-text">{current.question}</p>
+            {current.choices?.length >= 2 && (
+              <ol className="choices">
+                {current.choices.map((c, i) => (
+                  <li
+                    key={`${i}-${c}`}
+                    className={`choice${
+                      revealed && c.trim() === current.answer.trim() ? ' choice--correct' : ''
+                    }`}
+                  >
+                    <span className="choice__num">{i + 1}</span>
+                    <span className="choice__text">{c}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
             {hintShown && current.hint && (
               <p className="hint-box">💡 {current.hint}</p>
             )}

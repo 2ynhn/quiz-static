@@ -25,6 +25,9 @@ async function fetchOpenTDB({ difficulty, amount }) {
   return data.results.map((r) => ({
     question: decodeURIComponent(r.question),
     answer: decodeURIComponent(r.correct_answer),
+    incorrect: Array.isArray(r.incorrect_answers)
+      ? r.incorrect_answers.map((x) => decodeURIComponent(x))
+      : [],
   }));
 }
 
