@@ -32,7 +32,7 @@ import { fetchTrivia } from '../data/trivia.js';
 async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, seen }) {
   let raw;
   try {
-    raw = await fetchTrivia({ difficulty, amount: Math.max(count, 10) });
+    raw = await fetchTrivia({ difficulty, amount: Math.max(count + 2, 4) });
   } catch {
     return null;
   }
@@ -65,7 +65,65 @@ async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, s
       out.push(finalizeChoices(q));
     }
   }
-  return out.length > 0 ? out : null;
+  return out.length > 0 ? out.slice(0, count) : null;
+}
+
+// 일반상식 블렌드: 한국 문제는 AI가 생성(한국 가중), 세계 문제는 Trivia에서 받아 섞는다.
+// KOREA_RATIO로 한국 비중 조절(0~1). 한쪽이 실패하면 다른 쪽만으로 진행.
+const KOREA_RATIO = 0.6;
+const KOREA_GK_SUBRULE =
+  '- 한국(대한민국) 관련 상식을 중심으로 출제하세요: 한국의 지리·역사·문화·전통·명절·일상·인물·음식·자연·시사 등. 한국인이 일상에서 접하는 보편 상식 위주로 하세요.';
+
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+async function generateGeneralKnowledge({ adapter, provider, apiKey, model, difficulty, count, seen, excludeKeywords }) {
+  const koreaN = Math.max(1, Math.round(count * KOREA_RATIO));
+  const worldN = Math.max(0, count - koreaN);
+
+  // 한국(AI 생성, 주관식)과 세계(Trivia, 객관식)를 동시에 요청
+  const [koreaRes, worldRes] = await Promise.allSettled([
+    produceBatch({
+      adapter,
+      provider,
+      apiKey,
+      model,
+      category: '일반상식',
+      difficulty,
+      count: koreaN,
+      excludeKeywords,
+      wantTheme: false,
+      typeHint: '',
+      maskTemplate: null,
+      subRule: KOREA_GK_SUBRULE,
+    }),
+    worldN > 0
+      ? generateFromTrivia({ adapter, apiKey, model, difficulty, count: worldN, seen })
+      : Promise.resolve(null),
+  ]);
+
+  const out = [];
+  // 세계(Trivia) — generateFromTrivia가 이미 seen 반영·보기 확정
+  if (worldRes.status === 'fulfilled' && Array.isArray(worldRes.value)) {
+    out.push(...worldRes.value);
+  }
+  // 한국(AI) — seen 기준 중복 제거
+  if (koreaRes.status === 'fulfilled' && koreaRes.value?.questions) {
+    for (const q of koreaRes.value.questions) {
+      const norm = normalizeForLeak(q.answer);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        out.push(q);
+      }
+    }
+  }
+  return out.length > 0 ? shuffleArr(out) : null;
 }
 
 // A-3 프로바이더별 샘플링 파라미터 (소재 수렴 방지)
@@ -203,11 +261,20 @@ export async function generateQuestions({
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
 
-  // 일반상식: 글로벌 Trivia API에서 검증된 문제를 받아 한국어로 번역해 사용(환각 방지).
+  // 일반상식: 한국(AI 생성) + 세계(Trivia 번역)를 한국 비중 높게 블렌드.
   // 실패하면 아래 일반 생성 경로로 자연스럽게 폴백한다.
   if (usesTrivia(category) && !typeHint) {
-    const fromTrivia = await generateFromTrivia({ adapter, apiKey, model, difficulty, count, seen });
-    if (fromTrivia) return { questions: fromTrivia, theme: null };
+    const blended = await generateGeneralKnowledge({
+      adapter,
+      provider,
+      apiKey,
+      model,
+      difficulty,
+      count: Math.max(count, 10),
+      seen,
+      excludeKeywords: excludeKeywords.slice(-80),
+    });
+    if (blended) return { questions: blended, theme: null };
   }
 
   const collected = [];
