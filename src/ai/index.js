@@ -21,6 +21,7 @@ import {
   applyReview,
   normalizeForLeak,
   finalizeChoices,
+  isYearAnswer,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
 import { parseMaskTemplate, applyMask } from '../mask.js';
@@ -32,10 +33,12 @@ import { fetchTrivia } from '../data/trivia.js';
 async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, seen }) {
   let raw;
   try {
-    raw = await fetchTrivia({ difficulty, amount: Math.max(count + 2, 4) });
+    raw = await fetchTrivia({ difficulty, amount: Math.max(count + 4, 6) });
   } catch {
     return null;
   }
+  // 일반상식: 정답이 연도인 문제는 번역 전에 제외
+  if (Array.isArray(raw)) raw = raw.filter((r) => !isYearAnswer(r.answer));
   if (!raw || raw.length === 0) return null;
   let parsed;
   try {
@@ -59,6 +62,7 @@ async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, s
   // 누적 제외 + 배치 내 중복 필터 + 객관식 보기 확정(정답 포함·섞기)
   const out = [];
   for (const q of questions) {
+    if (isYearAnswer(q.answer)) continue; // 번역 후에도 연도 정답이면 제외
     const norm = normalizeForLeak(q.answer);
     if (norm && !seen.has(norm)) {
       seen.add(norm);
@@ -72,7 +76,8 @@ async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, s
 // KOREA_RATIO로 한국 비중 조절(0~1). 한쪽이 실패하면 다른 쪽만으로 진행.
 const KOREA_RATIO = 0.6;
 const KOREA_GK_SUBRULE =
-  '- 한국(대한민국) 관련 상식을 중심으로 출제하세요: 한국의 지리·역사·문화·전통·명절·일상·인물·음식·자연·시사 등. 한국인이 일상에서 접하는 보편 상식 위주로 하세요.';
+  '- 한국(대한민국) 관련 상식을 중심으로 출제하세요: 한국의 지리·역사·문화·전통·명절·일상·인물·음식·자연·시사 등. 한국인이 일상에서 접하는 보편 상식 위주로 하세요.\n' +
+  '- 정답이 연도(예: 1945년, 2000년)인 문제는 출제하지 마세요.';
 
 function shuffleArr(arr) {
   const a = [...arr];
@@ -116,6 +121,7 @@ async function generateGeneralKnowledge({ adapter, provider, apiKey, model, diff
   // 한국(AI) — seen 기준 중복 제거
   if (koreaRes.status === 'fulfilled' && koreaRes.value?.questions) {
     for (const q of koreaRes.value.questions) {
+      if (isYearAnswer(q.answer)) continue; // 연도 정답 제외
       const norm = normalizeForLeak(q.answer);
       if (norm && !seen.has(norm)) {
         seen.add(norm);

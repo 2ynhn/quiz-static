@@ -97,6 +97,16 @@ export function leaksAnswer(q) {
   return answers.some((a) => questionText.includes(a) || hintText.includes(a));
 }
 
+// 정답이 '연도'인지 판별 (일반상식에서 연도 정답 문제를 제외하는 데 사용)
+// 예: "1945년", "2000년", "기원전 100년", "1392", "100 BC" → true / "100"(개수), "3.14" → false
+export function isYearAnswer(answer) {
+  const s = String(answer).trim();
+  if (/^(기원전\s*)?\d{1,4}\s*(년|년도)$/.test(s)) return true; // 1945년, 기원전 100년
+  if (/^\d{1,4}\s*(ad|bc|ce|bce)$/i.test(s)) return true; // 1945 AD, 100 BC
+  if (/^(1\d{3}|20\d{2}|21\d{2})$/.test(s)) return true; // 1000~2199 (연도로 보이는 4자리)
+  return false;
+}
+
 // 검수 응답({"results":[{index,pass}]})을 적용해 통과한 문제만 남긴다.
 // 응답 형식이 어긋나면 검수를 건너뛴다(원본 유지) — 검수 실패가 게임을 막으면 안 된다.
 export function applyReview(questions, parsed) {
