@@ -47,8 +47,20 @@ export const THEME_INSTRUCTION = `
 - pattern: "grid" | "wave" | "dot" | "square" | "diagonal" 중 카테고리 분위기에 맞는 하나
 형식 예: "theme": { "emoji": "🚀", "color": "#3DA8E0", "pattern": "dot" }`;
 
-// 사용자가 지정한 출제 형식 예시 → "예시와 똑같은 형식으로 출제" 지시 (정답 노출 금지 규칙 무효화)
-function buildTypeHintInstruction(typeHint) {
+// 출제 형식 지시. 프리픽스 마스킹(maskTemplate)이면 가림은 앱이 처리하므로 AI는 정답만 만든다.
+function buildTypeHintInstruction(typeHint, maskTemplate) {
+  if (maskTemplate) {
+    const n = maskTemplate.revealCount;
+    return (
+      `\n[출제 형식 — 매우 중요]\n` +
+      `이 카테고리는 '정답의 앞 ${n}글자만 보여주고 나머지는 가리는' 형식입니다. ` +
+      `가리는 처리는 앱이 자동으로 하므로 당신은 정답만 만들면 됩니다.\n` +
+      `- answer: 가리지 않은 '완전한 정답 전체'를 넣으세요. (예: 인터스텔라)\n` +
+      `- question: answer와 동일하게 완전한 정답 전체를 넣으세요(앱이 앞 ${n}글자만 남기고 가립니다). 절대 직접 가리거나 괄호를 넣지 마세요.\n` +
+      `- 정답은 이 카테고리 주제에 실제로 존재하는 항목이어야 하며, 반드시 ${n + 1}글자 이상이어야 합니다.\n` +
+      `- hint는 정답을 직접 쓰지 말고 짧은 단서로 작성하세요.`
+    );
+  }
   if (!typeHint) return '';
   return (
     `\n[출제 형식 — 매우 중요, 시스템의 '정답 노출 금지' 규칙보다 우선]\n` +
@@ -56,9 +68,7 @@ function buildTypeHintInstruction(typeHint) {
     `예시: ${typeHint}\n` +
     `- question 필드에는 예시처럼 일부가 가려지거나 변형된 형태를 넣으세요. ` +
     `정답의 일부가 question에 보여도 됩니다(형식상 의도된 것).\n` +
-    `- answer 필드에는 가려지지 않은 완전한 정답을 넣으세요. ` +
-    `(예: question "인터(스)(텔)(라)" → answer "인터스텔라")\n` +
-    `- 예시의 가림 규칙(보이는 글자 수, 괄호 개수가 남은 글자 수와 일치 등)을 정답 길이에 맞춰 그대로 적용하세요.\n` +
+    `- answer 필드에는 가려지지 않은 완전한 정답을 넣으세요.\n` +
     `- hint는 정답을 직접 쓰지 말고 짧은 단서로 작성하세요.`
   );
 }
@@ -71,6 +81,7 @@ export function buildQuestionUserPrompt({
   wantTheme = false,
   diversity = null,
   typeHint = '',
+  maskTemplate = null,
 }) {
   // A-1 누적 제외 목록 — 정답·소재 모두 반복 금지
   const exclude =
@@ -97,7 +108,7 @@ export function buildQuestionUserPrompt({
     `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.` +
     exclude +
     axes +
-    buildTypeHintInstruction(typeHint) +
+    buildTypeHintInstruction(typeHint, maskTemplate) +
     (wantTheme ? THEME_INSTRUCTION : '')
   );
 }

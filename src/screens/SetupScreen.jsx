@@ -293,7 +293,7 @@ export default function SetupScreen({
           <input
             type="text"
             className="input"
-            placeholder="형식 예시(선택) — 예: 인터(스)(텔)(라), 천장(지)(구)"
+            placeholder="형식 예시(선택) — 예: 인터()  ← 앞 2글자만 보이고 나머지 가림"
             value={newTypeHint}
             onChange={(e) => setNewTypeHint(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
@@ -308,8 +308,9 @@ export default function SetupScreen({
           </button>
         </div>
         <p className="hint-text">
-          형식 예시를 적으면 그 형태(마스킹·초성·설명형 등)로 문제가 출제됩니다. 정답이 일부
-          보여도 됩니다.
+          형식 예시를 적으면 그 형태로 출제됩니다. 가릴 부분은 <code>()</code>처럼 비워두세요 —
+          예: <code>인터()</code>면 정답 앞 2글자만 보이고 나머지는 자동으로 가려집니다(앱이 처리).
+          초성·설명형 등 다른 형식도 예시로 보여주면 됩니다.
         </p>
 
         {recommended.length > 0 && (

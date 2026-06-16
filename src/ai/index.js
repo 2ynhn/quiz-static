@@ -20,6 +20,7 @@ import {
   normalizeForLeak,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
+import { parseMaskTemplate, applyMask } from '../mask.js';
 
 // A-3 프로바이더별 샘플링 파라미터 (소재 수렴 방지)
 const SAMPLING = {
@@ -60,7 +61,7 @@ async function withRateLimitRetry(fn) {
 
 // 한 배치 생성 → 정답 노출 기계 필터 → AI 교차 검수. theme도 함께 반환.
 // typeHint(특수 출제 형식)가 있으면 정답이 의도적으로 노출되므로 노출 필터·검수를 건너뛴다.
-async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme, typeHint }) {
+async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme, typeHint, maskTemplate }) {
   const sampling = SAMPLING[provider] || {};
   const user = buildQuestionUserPrompt({
     category,
@@ -70,6 +71,7 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
     wantTheme,
     diversity: makeDiversityAxes(category),
     typeHint,
+    maskTemplate,
   });
 
   // 생성: JSON 파싱 실패 시 temperature를 낮춰 1회 재시도
@@ -96,6 +98,17 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
 
   const theme = generated?.theme || null;
   let questions = normalizeQuestions(generated);
+
+  // 프리픽스 마스킹: 가림은 앱이 결정적으로 수행(AI는 정답 전체만 생성).
+  // 정답 앞 N글자만 남기고 "()"로 가린 텍스트를 question에 덮어쓴다. 가릴 수 없으면 버림.
+  if (maskTemplate) {
+    questions = questions
+      .map((q) => {
+        const masked = applyMask(q.answer, maskTemplate.revealCount);
+        return masked ? { ...q, question: masked } : null;
+      })
+      .filter(Boolean);
+  }
 
   // 특수 출제 형식(typeHint)이면 정답 노출이 의도된 것이므로 노출 필터·검수를 건너뛴다.
   if (!typeHint) {
@@ -136,6 +149,7 @@ export async function generateQuestions({
   typeHint = '',
 }) {
   const adapter = getAdapter(provider);
+  const maskTemplate = parseMaskTemplate(typeHint);
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
   const collected = [];
@@ -160,6 +174,7 @@ export async function generateQuestions({
         excludeKeywords: excludeForPrompt.slice(-80),
         wantTheme: wantTheme && attempt === 0,
         typeHint,
+        maskTemplate,
       });
     } catch (e) {
       if (attempt === 0) throw e; // 첫 호출 실패는 호출부(폴백)로 전파
