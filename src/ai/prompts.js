@@ -138,6 +138,22 @@ export function buildReviewUserPrompt({ questions, difficulty }) {
   return `요청 난이도: '${difficulty}'\n검수할 문제 목록:\n${JSON.stringify({ questions })}`;
 }
 
+// 글로벌 Trivia(영어) → 한국어 주관식 번역. 사실은 원문 그대로, 표현만 한국어로.
+export const TRANSLATE_SYSTEM_PROMPT = `당신은 영어 상식 퀴즈를 한국어 주관식 퀴즈로 옮기는 전문 번역가입니다.
+- 원문의 사실·정답을 절대 바꾸지 말고 자연스러운 한국어로 번역하세요(의역은 허용, 사실 왜곡은 금지).
+- 보기 선택형으로 쓰인 문제는 보기 없이 답을 직접 떠올리는 주관식으로 자연스럽게 바꾸세요.
+- 정답이 고유명사(인물·지명·작품 등)면 한국에서 통용되는 표기를 쓰세요.
+- 반드시 {"questions":[{"question":"...","answer":"...","hint":"...","altAnswers":["..."]}]} 형태의 JSON만 출력하세요.`;
+
+export function buildTranslateUserPrompt(items) {
+  return (
+    '다음 영어 문제들을 한국어로 번역하세요. 각 항목마다 ' +
+    'question(한국어 문제문), answer(한국어 정답), hint(정답을 노출하지 않는 짧은 한국어 단서), ' +
+    'altAnswers(정답의 다른 한국어 표기 배열, 없으면 [])를 채우세요.\n' +
+    JSON.stringify({ items })
+  );
+}
+
 export const RECOMMEND_SYSTEM_PROMPT = `당신은 퀴즈 카테고리 추천가입니다. 반드시 아래 형태의 JSON만 출력하세요:
 {"categories":[{"name":"...","theme":{"emoji":"...","color":"#RRGGBB","pattern":"..."}},{"name":"...","theme":{...}}]}
 theme 규칙:

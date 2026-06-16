@@ -3,6 +3,11 @@
 //  - mask: { revealCount } 가 있으면 코드가 정답 앞 N글자만 남기고 가린다(빈칸 채우기 유형).
 //  - subRule: 사용자 프롬프트에 덧붙일 도메인별 출제 지시 한두 줄.
 // 사용자가 형식 예시(typeHint)를 직접 준 경우엔 그 예시가 우선이므로 이 분류는 적용하지 않는다(호출부에서 처리).
+// 일반상식은 글로벌 Trivia API(검증된 문제)를 받아 번역해 쓴다(환각 방지).
+export function usesTrivia(name) {
+  return String(name || '') === '일반상식';
+}
+
 export function classifyCategory(name) {
   const n = String(name || '');
 

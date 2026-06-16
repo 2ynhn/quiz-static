@@ -8,9 +8,11 @@ import {
   QUESTION_SYSTEM_PROMPT,
   REVIEW_SYSTEM_PROMPT,
   RECOMMEND_SYSTEM_PROMPT,
+  TRANSLATE_SYSTEM_PROMPT,
   buildQuestionUserPrompt,
   buildReviewUserPrompt,
   buildRecommendUserPrompt,
+  buildTranslateUserPrompt,
 } from './prompts.js';
 import {
   normalizeQuestions,
@@ -21,7 +23,49 @@ import {
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
 import { parseMaskTemplate, applyMask } from '../mask.js';
-import { classifyCategory } from '../categoryRules.js';
+import { classifyCategory, usesTrivia } from '../categoryRules.js';
+import { fetchTrivia } from '../data/trivia.js';
+
+// 일반상식: 글로벌 Trivia API(영어)에서 검증된 문제를 받아 AI로 한국어 주관식 번역.
+// 성공 시 번역된 문제 배열 반환, 실패 시 null(호출부가 일반 생성으로 폴백).
+async function generateFromTrivia({ adapter, apiKey, model, difficulty, count, seen }) {
+  let raw;
+  try {
+    raw = await fetchTrivia({ difficulty, amount: Math.max(count, 10) });
+  } catch {
+    return null;
+  }
+  if (!raw || raw.length === 0) return null;
+  let parsed;
+  try {
+    parsed = await withRateLimitRetry(() =>
+      adapter.completeJSON({
+        apiKey,
+        model,
+        system: TRANSLATE_SYSTEM_PROMPT,
+        user: buildTranslateUserPrompt(raw),
+      })
+    );
+  } catch {
+    return null;
+  }
+  let questions;
+  try {
+    questions = normalizeQuestions(parsed);
+  } catch {
+    return null;
+  }
+  // 누적 제외 + 배치 내 중복 필터
+  const out = [];
+  for (const q of questions) {
+    const norm = normalizeForLeak(q.answer);
+    if (norm && !seen.has(norm)) {
+      seen.add(norm);
+      out.push(q);
+    }
+  }
+  return out.length > 0 ? out : null;
+}
 
 // A-3 프로바이더별 샘플링 파라미터 (소재 수렴 방지)
 const SAMPLING = {
@@ -157,6 +201,14 @@ export async function generateQuestions({
   const subRule = typeHint ? '' : cls.subRule;
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
+
+  // 일반상식: 글로벌 Trivia API에서 검증된 문제를 받아 한국어로 번역해 사용(환각 방지).
+  // 실패하면 아래 일반 생성 경로로 자연스럽게 폴백한다.
+  if (usesTrivia(category) && !typeHint) {
+    const fromTrivia = await generateFromTrivia({ adapter, apiKey, model, difficulty, count, seen });
+    if (fromTrivia) return { questions: fromTrivia, theme: null };
+  }
+
   const collected = [];
   let theme = null;
   // 검수·중복 탈락을 감안해 소량 여유분만 생성하고, 살아남은 문제는 전부 반환해
