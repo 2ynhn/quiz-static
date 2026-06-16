@@ -87,6 +87,7 @@ export function buildQuestionUserPrompt({
   diversity = null,
   typeHint = '',
   maskTemplate = null,
+  subRule = '',
 }) {
   // A-1 누적 제외 목록 — 정답·소재 모두 반복 금지
   const exclude =
@@ -113,6 +114,7 @@ export function buildQuestionUserPrompt({
     `${count}문제 전부가 '${difficulty}' 난이도(시스템 규칙의 예상 정답률 범위)여야 합니다.` +
     exclude +
     axes +
+    (subRule ? `\n[이 카테고리 출제 규칙]\n${subRule}` : '') +
     buildTypeHintInstruction(typeHint, maskTemplate) +
     (wantTheme ? THEME_INSTRUCTION : '')
   );

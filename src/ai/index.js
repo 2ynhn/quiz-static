@@ -21,6 +21,7 @@ import {
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
 import { parseMaskTemplate, applyMask } from '../mask.js';
+import { classifyCategory } from '../categoryRules.js';
 
 // A-3 프로바이더별 샘플링 파라미터 (소재 수렴 방지)
 const SAMPLING = {
@@ -61,7 +62,7 @@ async function withRateLimitRetry(fn) {
 
 // 한 배치 생성 → 정답 노출 기계 필터 → AI 교차 검수. theme도 함께 반환.
 // typeHint(특수 출제 형식)가 있으면 정답이 의도적으로 노출되므로 노출 필터·검수를 건너뛴다.
-async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme, typeHint, maskTemplate }) {
+async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme, typeHint, maskTemplate, subRule }) {
   const sampling = SAMPLING[provider] || {};
   const user = buildQuestionUserPrompt({
     category,
@@ -72,6 +73,7 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
     diversity: makeDiversityAxes(category),
     typeHint,
     maskTemplate,
+    subRule,
   });
 
   // 생성: JSON 파싱 실패 시 temperature를 낮춰 1회 재시도
@@ -110,8 +112,8 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
       .filter(Boolean);
   }
 
-  // 특수 출제 형식(typeHint)이면 정답 노출이 의도된 것이므로 노출 필터·검수를 건너뛴다.
-  if (!typeHint) {
+  // 특수 출제 형식(typeHint) 또는 마스킹이면 정답 노출이 의도된 것이므로 노출 필터·검수를 건너뛴다.
+  if (!typeHint && !maskTemplate) {
     // 문제문/힌트에 정답이 그대로 노출된 문제 제거
     const filtered = questions.filter((q) => !leaksAnswer(q));
     if (filtered.length > 0) questions = filtered;
@@ -149,7 +151,10 @@ export async function generateQuestions({
   typeHint = '',
 }) {
   const adapter = getAdapter(provider);
-  const maskTemplate = parseMaskTemplate(typeHint);
+  // 숨은 의도 분류: 사용자가 형식 예시(typeHint)를 직접 주면 그게 우선, 없으면 카테고리명으로 자동 분류.
+  const cls = classifyCategory(category);
+  const maskTemplate = parseMaskTemplate(typeHint) || (typeHint ? null : cls.mask);
+  const subRule = typeHint ? '' : cls.subRule;
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
   const collected = [];
@@ -175,6 +180,7 @@ export async function generateQuestions({
         wantTheme: wantTheme && attempt === 0,
         typeHint,
         maskTemplate,
+        subRule,
       });
     } catch (e) {
       if (attempt === 0) throw e; // 첫 호출 실패는 호출부(폴백)로 전파
