@@ -58,6 +58,7 @@ export const STORAGE_KEYS = {
   providers: 'quiz.providers',
   legacyApiKey: 'quiz.apiKey', // v1 단일 키 — providers.openai.key로 마이그레이션
   userCategories: 'quiz.userCategories',
+  categoryTypeHints: 'quiz.categoryTypeHints', // 사용자 카테고리별 출제 형식 예시
   recommended: 'quiz.recommended',
   categoryThemes: 'quiz.categoryThemes',
   askedAnswers: 'quiz.askedAnswers', // 중복 회피: { "카테고리_난이도": [정답...] }

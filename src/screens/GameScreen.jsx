@@ -12,6 +12,7 @@ const TEAM_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 export default function GameScreen({ config, aiConfig, onFinish }) {
   const { mode, teamCount, turnMode, consecutiveCount, difficulty, category } = config;
   const timerSec = config.timerSec || 0;
+  const typeHint = config.typeHint || '';
 
   const [teams, setTeams] = useState(() =>
     Array.from({ length: mode === 'team' ? teamCount : 1 }, (_, i) => ({
@@ -31,6 +32,7 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
     aiConfig,
     category,
     difficulty,
+    typeHint,
   });
 
   const theme = getTheme(category);

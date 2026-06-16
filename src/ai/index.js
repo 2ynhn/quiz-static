@@ -59,7 +59,8 @@ async function withRateLimitRetry(fn) {
 }
 
 // 한 배치 생성 → 정답 노출 기계 필터 → AI 교차 검수. theme도 함께 반환.
-async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme }) {
+// typeHint(특수 출제 형식)가 있으면 정답이 의도적으로 노출되므로 노출 필터·검수를 건너뛴다.
+async function produceBatch({ adapter, provider, apiKey, model, category, difficulty, count, excludeKeywords, wantTheme, typeHint }) {
   const sampling = SAMPLING[provider] || {};
   const user = buildQuestionUserPrompt({
     category,
@@ -68,6 +69,7 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
     excludeKeywords,
     wantTheme,
     diversity: makeDiversityAxes(category),
+    typeHint,
   });
 
   // 생성: JSON 파싱 실패 시 temperature를 낮춰 1회 재시도
@@ -95,24 +97,27 @@ async function produceBatch({ adapter, provider, apiKey, model, category, diffic
   const theme = generated?.theme || null;
   let questions = normalizeQuestions(generated);
 
-  // 문제문/힌트에 정답이 그대로 노출된 문제 제거
-  const filtered = questions.filter((q) => !leaksAnswer(q));
-  if (filtered.length > 0) questions = filtered;
+  // 특수 출제 형식(typeHint)이면 정답 노출이 의도된 것이므로 노출 필터·검수를 건너뛴다.
+  if (!typeHint) {
+    // 문제문/힌트에 정답이 그대로 노출된 문제 제거
+    const filtered = questions.filter((q) => !leaksAnswer(q));
+    if (filtered.length > 0) questions = filtered;
 
-  // 같은 모델을 검수자로 재호출해 오답·난이도 이탈·창작 문제를 탈락 (실패 시 1차 결과 유지)
-  try {
-    const review = await withRateLimitRetry(() =>
-      adapter.completeJSON({
-        apiKey,
-        model,
-        system: REVIEW_SYSTEM_PROMPT,
-        user: buildReviewUserPrompt({ questions, difficulty }),
-      })
-    );
-    const passed = applyReview(questions, review);
-    if (passed.length > 0) questions = passed;
-  } catch {
-    // 검수 생략
+    // 같은 모델을 검수자로 재호출해 오답·난이도 이탈·창작 문제를 탈락 (실패 시 1차 결과 유지)
+    try {
+      const review = await withRateLimitRetry(() =>
+        adapter.completeJSON({
+          apiKey,
+          model,
+          system: REVIEW_SYSTEM_PROMPT,
+          user: buildReviewUserPrompt({ questions, difficulty }),
+        })
+      );
+      const passed = applyReview(questions, review);
+      if (passed.length > 0) questions = passed;
+    } catch {
+      // 검수 생략
+    }
   }
 
   return { questions, theme };
@@ -128,6 +133,7 @@ export async function generateQuestions({
   excludeKeywords = [],
   excludeSet = null,
   wantTheme = false,
+  typeHint = '',
 }) {
   const adapter = getAdapter(provider);
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
@@ -153,6 +159,7 @@ export async function generateQuestions({
         count: candidateCount,
         excludeKeywords: excludeForPrompt.slice(-80),
         wantTheme: wantTheme && attempt === 0,
+        typeHint,
       });
     } catch (e) {
       if (attempt === 0) throw e; // 첫 호출 실패는 호출부(폴백)로 전파

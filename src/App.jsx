@@ -42,6 +42,11 @@ export default function App() {
   const [userCategories, setUserCategoriesState] = useState(() =>
     storage.get(STORAGE_KEYS.userCategories, [])
   );
+  // 사용자 카테고리별 출제 형식 예시 { name: "예시1, 예시2" }
+  const [categoryTypeHints, setCategoryTypeHintsState] = useState(() => {
+    const saved = storage.get(STORAGE_KEYS.categoryTypeHints, {});
+    return saved && typeof saved === 'object' ? saved : {};
+  });
   const [gameConfig, setGameConfig] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
@@ -65,6 +70,11 @@ export default function App() {
   const setUserCategories = (categories) => {
     storage.set(STORAGE_KEYS.userCategories, categories);
     setUserCategoriesState(categories);
+  };
+
+  const setCategoryTypeHints = (hints) => {
+    storage.set(STORAGE_KEYS.categoryTypeHints, hints);
+    setCategoryTypeHintsState(hints);
   };
 
   // 현재 활성 프로바이더의 AI 호출 구성
@@ -114,6 +124,8 @@ export default function App() {
       onChangeModel={(id, model) => updateProviderEntry(id, { model })}
       userCategories={userCategories}
       onChangeUserCategories={setUserCategories}
+      categoryTypeHints={categoryTypeHints}
+      onChangeCategoryTypeHints={setCategoryTypeHints}
       recommended={recommended}
       onStart={(config) => {
         setGameConfig(config);

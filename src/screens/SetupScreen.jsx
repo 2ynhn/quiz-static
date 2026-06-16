@@ -27,6 +27,8 @@ export default function SetupScreen({
   onChangeModel,
   userCategories,
   onChangeUserCategories,
+  categoryTypeHints = {},
+  onChangeCategoryTypeHints,
   recommended,
   onStart,
   onOpenSettings,
@@ -38,6 +40,7 @@ export default function SetupScreen({
   const [difficulty, setDifficulty] = useState('중');
   const [category, setCategory] = useState(null); // 기본 선택 없음 — 선택해야 시작 가능
   const [newCategory, setNewCategory] = useState('');
+  const [newTypeHint, setNewTypeHint] = useState('');
   // 제한시간: 0=없음, 1~30초. localStorage에 기억
   const [timerSec, setTimerSecState] = useState(() => clampTimer(storage.get(STORAGE_KEYS.timerSec, 0)));
 
@@ -54,12 +57,20 @@ export default function SetupScreen({
     const name = newCategory.trim();
     if (!name || userCategories.includes(name) || DEFAULT_CATEGORIES.includes(name)) return;
     onChangeUserCategories([...userCategories, name]);
+    const hint = newTypeHint.trim();
+    if (hint) onChangeCategoryTypeHints({ ...categoryTypeHints, [name]: hint });
     setNewCategory('');
+    setNewTypeHint('');
   };
 
   const removeCategory = (name) => {
     if (!window.confirm(`'${name}' 카테고리를 삭제할까요?`)) return;
     onChangeUserCategories(userCategories.filter((x) => x !== name));
+    if (categoryTypeHints[name]) {
+      const next = { ...categoryTypeHints };
+      delete next[name];
+      onChangeCategoryTypeHints(next);
+    }
     if (category === name) setCategory(null);
   };
 
@@ -72,6 +83,7 @@ export default function SetupScreen({
       consecutiveCount,
       difficulty,
       category,
+      typeHint: categoryTypeHints[category] || '',
       timerSec,
     });
   };
@@ -245,32 +257,45 @@ export default function SetupScreen({
         {userCategories.length > 0 && (
           <ul className="my-cat-list">
             {userCategories.map((c) => (
-              <li key={c} className="my-cat-row">
-                <CategoryChip
-                  name={c}
-                  theme={getTheme(c)}
-                  selected={category === c}
-                  onClick={() => setCategory(c)}
-                />
-                <button
-                  type="button"
-                  className="my-cat-row__del"
-                  aria-label={`${c} 삭제`}
-                  onClick={() => removeCategory(c)}
-                >
-                  삭제
-                </button>
+              <li key={c} className="my-cat-item">
+                <div className="my-cat-row">
+                  <CategoryChip
+                    name={c}
+                    theme={getTheme(c)}
+                    selected={category === c}
+                    onClick={() => setCategory(c)}
+                  />
+                  <button
+                    type="button"
+                    className="my-cat-row__del"
+                    aria-label={`${c} 삭제`}
+                    onClick={() => removeCategory(c)}
+                  >
+                    삭제
+                  </button>
+                </div>
+                {categoryTypeHints[c] && (
+                  <p className="my-cat-hint">📐 형식 예시: {categoryTypeHints[c]}</p>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <div className="input-row">
+        <div className="my-cat-add">
           <input
             type="text"
             className="input"
-            placeholder="예: 90년대 가요"
+            placeholder="카테고리(주제) — 예: 영화 제목 맞추기"
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+          />
+          <input
+            type="text"
+            className="input"
+            placeholder="형식 예시(선택) — 예: 인터(스)(텔)(라), 천장(지)(구)"
+            value={newTypeHint}
+            onChange={(e) => setNewTypeHint(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
           />
           <button
@@ -282,6 +307,10 @@ export default function SetupScreen({
             추가
           </button>
         </div>
+        <p className="hint-text">
+          형식 예시를 적으면 그 형태(마스킹·초성·설명형 등)로 문제가 출제됩니다. 정답이 일부
+          보여도 됩니다.
+        </p>
 
         {recommended.length > 0 && (
           <>
