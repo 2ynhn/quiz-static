@@ -28,3 +28,12 @@ export function applyMask(answer, revealCount) {
   if (chars.length <= revealCount) return null; // 가릴 글자가 없음
   return chars.slice(0, revealCount).join('') + MASK_TOKEN;
 }
+
+// 단어 완성용: 앞 N글자만 남기고 남은 글자 수만큼 '[]'로 가린다 (길이 노출).
+// 예: 인터스텔라, 2 → "인터[][][]" / 결초보은, 2 → "결초[][]"
+export function applyBracketMask(answer, revealCount) {
+  const chars = [...String(answer)];
+  if (chars.length <= revealCount) return null;
+  const hidden = chars.length - revealCount;
+  return chars.slice(0, revealCount).join('') + '[]'.repeat(hidden);
+}

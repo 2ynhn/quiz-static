@@ -4,12 +4,10 @@ import { STORAGE_KEYS } from '../constants.js';
 
 export const PATTERN_IDS = ['grid', 'wave', 'dot', 'square', 'diagonal'];
 
-// 기본 카테고리(4) — 프론트 고정 매핑
+// 기본 테마 — 프론트 고정 매핑
 export const BASE_THEMES = {
-  한국사: { emoji: '🏯', color: '#C8892F', pattern: 'grid' },
-  세계사: { emoji: '🌍', color: '#1D9E75', pattern: 'dot' },
   일반상식: { emoji: '📚', color: '#B05BC8', pattern: 'wave' },
-  사자성어: { emoji: '🐉', color: '#D85A30', pattern: 'square' },
+  '단어 완성': { emoji: '🧩', color: '#3DA8E0', pattern: 'square' },
 };
 
 const PALETTE = [

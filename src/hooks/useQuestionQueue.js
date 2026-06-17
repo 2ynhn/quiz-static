@@ -19,7 +19,7 @@ function shuffle(arr) {
 
 // 문제 공급 큐: AI 배치 생성 → 큐 소비, 잔여 3개 이하 시 백그라운드 선행 로딩.
 // AI 실패 시 내장 폴백 문제로 전환한다.
-export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = '' }) {
+export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = '', wordComplete = null }) {
   const [current, setCurrent] = useState(null);
   const [source, setSource] = useState(aiConfig.apiKey ? 'ai' : 'fallback');
   const [loading, setLoading] = useState(true);
@@ -71,6 +71,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
             excludeSet: getAskedSet(category, difficulty),
             wantTheme: !hasTheme(category),
             typeHint,
+            wordComplete,
           });
           if (theme) rememberTheme(category, theme);
           queueRef.current.push(...questions);
@@ -80,7 +81,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       })();
     }
     return fillPromiseRef.current;
-  }, [aiConfig.provider, aiConfig.apiKey, aiConfig.model, category, difficulty, typeHint]);
+  }, [aiConfig.provider, aiConfig.apiKey, aiConfig.model, category, difficulty, typeHint, wordComplete]);
 
   const advance = useCallback(async () => {
     if (sourceRef.current === 'ai') {

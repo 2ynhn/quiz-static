@@ -1,4 +1,10 @@
-export const DEFAULT_CATEGORIES = ['일반상식', '사자성어', '한국사', '세계사'];
+// 기본 테마(고정). '단어 완성'은 선택 시 하위 '주제'를 입력받는 특수 테마.
+export const DEFAULT_CATEGORIES = ['일반상식'];
+export const WORD_COMPLETE_THEME = '단어 완성';
+// 단어 완성 주제 프리셋 (자유 입력도 가능)
+export const WORD_COMPLETE_PRESETS = ['영화 제목', '사자성어', '브랜드·상품명', '아이돌·그룹 이름'];
+// 단어 완성: 앞 N글자만 보여주고 나머지는 칸으로 가린다
+export const WORD_COMPLETE_REVEAL = 2;
 
 export const DIFFICULTIES = ['상', '중', '하'];
 
@@ -64,6 +70,7 @@ export const STORAGE_KEYS = {
   askedAnswers: 'quiz.askedAnswers', // 중복 회피: { "카테고리_난이도": [정답...] }
   timerSec: 'quiz.timerSec', // 0 = 타이머 없음, 1~30 = 제한 초
   setup: 'quiz.setup', // 홈 화면에서 마지막으로 선택한 옵션들
+  wikiCache: 'quiz.wikiCache', // 위키백과 분류 목록 캐시
   stats: 'quiz.stats',
 };
 

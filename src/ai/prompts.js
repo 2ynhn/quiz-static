@@ -154,6 +154,24 @@ export function buildTranslateUserPrompt(items) {
   );
 }
 
+// 단어 완성: 특정 주제의 '실존하고 유명한 항목 이름'만 목록으로 받는다(가상 금지).
+export const WORDLIST_SYSTEM_PROMPT = `당신은 특정 주제에 해당하는 '실존하고 대중적으로 유명한 항목'의 이름만 나열하는 도우미입니다.
+- 절대 가상의 이름을 지어내지 마세요. 실제로 존재하고 널리 알려진 것만 출력하세요.
+- 이름은 한국에서 통용되는 한국어 표기로, 군더더기 없이 핵심 이름만(부제·괄호·설명 제외).
+- 각 이름은 공백 없이 이어진 2글자 이상의 단어 형태가 바람직합니다(예: 인터스텔라, 코카콜라, 동방신기).
+- 반드시 {"items":["이름1","이름2", ...]} 형태의 JSON만 출력하세요.`;
+
+export function buildWordListUserPrompt({ topic, count, excludeKeywords = [] }) {
+  const exclude =
+    excludeKeywords.length > 0
+      ? ` 다음은 이미 사용했으니 제외: ${excludeKeywords.join(', ')}.`
+      : '';
+  return (
+    `주제: ${topic}. 이 주제에 해당하는 실존하고 유명한 항목 이름 ${count}개를 나열하세요.` +
+    `${exclude} 가능하면 너무 길지 않은(2~6글자) 대표 이름 위주로.`
+  );
+}
+
 export const RECOMMEND_SYSTEM_PROMPT = `당신은 퀴즈 카테고리 추천가입니다. 반드시 아래 형태의 JSON만 출력하세요:
 {"categories":[{"name":"...","theme":{"emoji":"...","color":"#RRGGBB","pattern":"..."}},{"name":"...","theme":{...}}]}
 theme 규칙:

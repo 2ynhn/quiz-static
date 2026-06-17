@@ -9,10 +9,12 @@ import {
   REVIEW_SYSTEM_PROMPT,
   RECOMMEND_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
+  WORDLIST_SYSTEM_PROMPT,
   buildQuestionUserPrompt,
   buildReviewUserPrompt,
   buildRecommendUserPrompt,
   buildTranslateUserPrompt,
+  buildWordListUserPrompt,
 } from './prompts.js';
 import {
   normalizeQuestions,
@@ -22,11 +24,77 @@ import {
   normalizeForLeak,
   finalizeChoices,
   isYearAnswer,
+  normalizeItems,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
-import { parseMaskTemplate, applyMask } from '../mask.js';
+import { parseMaskTemplate, applyMask, applyBracketMask } from '../mask.js';
 import { classifyCategory, usesTrivia } from '../categoryRules.js';
 import { fetchTrivia } from '../data/trivia.js';
+import { fetchIdioms } from '../data/wiki.js';
+
+// 단어 완성: 주제의 '실존 이름' 목록을 받아 앞 N글자만 남기고 가린 문제를 만든다.
+//  - 사자성어/고사성어 주제 → 위키백과 분류(키 불필요)
+//  - 그 외 주제 → AI가 실존 유명 항목 목록 생성(가상 금지)
+function isIdiomTopic(topic) {
+  return /사자성어|고사성어/.test(String(topic || ''));
+}
+
+function shuffleArr2(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+async function generateWordCompletion({
+  adapter,
+  apiKey,
+  model,
+  topic,
+  count,
+  revealCount,
+  seen,
+  excludeKeywords = [],
+}) {
+  let names = [];
+  if (isIdiomTopic(topic)) {
+    try {
+      names = shuffleArr2(await fetchIdioms());
+    } catch {
+      names = [];
+    }
+  }
+  // 위키 결과가 없거나 다른 주제 → AI 실존 목록 생성(키 있을 때)
+  if (names.length === 0 && apiKey) {
+    try {
+      const parsed = await withRateLimitRetry(() =>
+        adapter.completeJSON({
+          apiKey,
+          model,
+          system: WORDLIST_SYSTEM_PROMPT,
+          user: buildWordListUserPrompt({ topic, count: Math.max(count + 6, 12), excludeKeywords }),
+        })
+      );
+      names = normalizeItems(parsed);
+    } catch {
+      names = [];
+    }
+  }
+  if (names.length === 0) return null;
+
+  const out = [];
+  for (const name of names) {
+    const masked = applyBracketMask(name, revealCount);
+    if (!masked) continue; // 가릴 글자가 없음(짧은 이름)
+    const norm = normalizeForLeak(name);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    out.push({ question: masked, answer: name, hint: '', altAnswers: [] });
+  }
+  return out.length > 0 ? out : null;
+}
 
 // 일반상식: 글로벌 Trivia API(영어)에서 검증된 문제를 받아 AI로 한국어 주관식 번역.
 // 성공 시 번역된 문제 배열 반환, 실패 시 null(호출부가 일반 생성으로 폴백).
@@ -258,6 +326,7 @@ export async function generateQuestions({
   excludeSet = null,
   wantTheme = false,
   typeHint = '',
+  wordComplete = null, // { topic, revealCount } — 단어 완성 모드
 }) {
   const adapter = getAdapter(provider);
   // 숨은 의도 분류: 사용자가 형식 예시(typeHint)를 직접 주면 그게 우선, 없으면 카테고리명으로 자동 분류.
@@ -266,6 +335,21 @@ export async function generateQuestions({
   const subRule = typeHint ? '' : cls.subRule;
   // 클라이언트 중복 필터링용 정규화 집합: 누적 제외 + 이번 호출 내 중복
   const seen = excludeSet ? new Set(excludeSet) : new Set(excludeKeywords.map(normalizeForLeak));
+
+  // 단어 완성: 실존 이름 목록을 받아 앞 N글자만 남기고 가림(위키백과/AI). 실패 시 null 반환.
+  if (wordComplete) {
+    const words = await generateWordCompletion({
+      adapter,
+      apiKey,
+      model,
+      topic: wordComplete.topic || category,
+      count: Math.max(count, 10),
+      revealCount: wordComplete.revealCount || 2,
+      seen,
+      excludeKeywords: excludeKeywords.slice(-80),
+    });
+    return { questions: words || [], theme: null };
+  }
 
   // 일반상식: 한국(AI 생성) + 세계(Trivia 번역)를 한국 비중 높게 블렌드.
   // 실패하면 아래 일반 생성 경로로 자연스럽게 폴백한다.

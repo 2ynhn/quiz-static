@@ -188,6 +188,17 @@ body {
   margin-left: 6px;
 }
 
+/* 단어 완성 주제 입력 영역 */
+.word-topic {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(61, 168, 224, 0.4);
+  border-radius: var(--radius);
+  background: rgba(61, 168, 224, 0.08);
+}
+
 /* 내 카테고리 — 1행 = 선택 칩 + 우측 삭제 버튼, 아래 형식 예시 */
 .my-cat-list {
   list-style: none;

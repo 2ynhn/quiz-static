@@ -59,6 +59,12 @@ export function finalizeChoices(q) {
   return { ...q, choices: shuffle(out) };
 }
 
+// 단어 완성: {"items":["..."]} → 문자열 배열로 정규화
+export function normalizeItems(parsed) {
+  const list = Array.isArray(parsed?.items) ? parsed.items : [];
+  return list.map((x) => String(x).trim()).filter(Boolean);
+}
+
 // 추천 응답은 [{name, theme}] 형태로 정규화 — 문자열 배열(구 스키마)도 허용
 export function normalizeCategories(parsed) {
   const list = Array.isArray(parsed?.categories) ? parsed.categories : [];

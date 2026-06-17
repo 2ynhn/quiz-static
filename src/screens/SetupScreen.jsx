@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   DEFAULT_CATEGORIES,
+  WORD_COMPLETE_THEME,
+  WORD_COMPLETE_PRESETS,
+  WORD_COMPLETE_REVEAL,
   DIFFICULTIES,
   STORAGE_KEYS,
   TIMER_PRESETS,
@@ -48,8 +51,10 @@ export default function SetupScreen({
   const [difficulty, setDifficulty] = useState(
     DIFFICULTIES.includes(savedSetup.difficulty) ? savedSetup.difficulty : '중'
   );
-  // 마지막 선택 카테고리 복원(처음엔 null → 선택해야 시작 가능)
+  // 마지막 선택 테마 복원(처음엔 null → 선택해야 시작 가능)
   const [category, setCategory] = useState(savedSetup.category || null);
+  // 단어 완성 주제(선택 시 하위 입력)
+  const [wordTopic, setWordTopic] = useState(savedSetup.wordTopic || '');
   const [newCategory, setNewCategory] = useState('');
   const [newTypeHint, setNewTypeHint] = useState('');
   // 제한시간: 0=없음, 1~30초. localStorage에 기억
@@ -67,13 +72,15 @@ export default function SetupScreen({
       consecutiveCount,
       difficulty,
       category,
+      wordTopic,
     });
-  }, [mode, teamCount, turnMode, consecutiveCount, difficulty, category]);
+  }, [mode, teamCount, turnMode, consecutiveCount, difficulty, category, wordTopic]);
 
-  // 복원된 카테고리가 더 이상 존재하지 않으면(삭제됨 등) 선택 해제
+  // 복원된 테마가 더 이상 존재하지 않으면(삭제됨 등) 선택 해제
   useEffect(() => {
     if (
       category &&
+      category !== WORD_COMPLETE_THEME &&
       !DEFAULT_CATEGORIES.includes(category) &&
       !userCategories.includes(category) &&
       !recommended.includes(category)
@@ -99,7 +106,7 @@ export default function SetupScreen({
   };
 
   const removeCategory = (name) => {
-    if (!window.confirm(`'${name}' 카테고리를 삭제할까요?`)) return;
+    if (!window.confirm(`'${name}' 테마를 삭제할까요?`)) return;
     onChangeUserCategories(userCategories.filter((x) => x !== name));
     if (categoryTypeHints[name]) {
       const next = { ...categoryTypeHints };
@@ -109,18 +116,30 @@ export default function SetupScreen({
     if (category === name) setCategory(null);
   };
 
+  const isWordComplete = category === WORD_COMPLETE_THEME;
+  const wordReady = isWordComplete && wordTopic.trim().length > 0;
+  const canStart = isWordComplete ? wordReady : Boolean(category);
+
   const start = () => {
-    if (!category) return;
-    onStart({
+    if (!canStart) return;
+    const base = {
       mode,
       teamCount: mode === 'team' ? teamCount : 1,
       turnMode,
       consecutiveCount,
       difficulty,
-      category,
-      typeHint: categoryTypeHints[category] || '',
       timerSec,
-    });
+    };
+    if (isWordComplete) {
+      const topic = wordTopic.trim();
+      onStart({
+        ...base,
+        category: topic,
+        wordComplete: { topic, revealCount: WORD_COMPLETE_REVEAL },
+      });
+    } else {
+      onStart({ ...base, category, typeHint: categoryTypeHints[category] || '' });
+    }
   };
 
   const chip = (label, selected, onClick, badge) => (
@@ -273,7 +292,7 @@ export default function SetupScreen({
       </section>
 
       <section className="section">
-        <h2 className="section__title">카테고리</h2>
+        <h2 className="section__title">테마</h2>
 
         <p className="cat-group__header">기본</p>
         <div className="chip-row chip-row--wrap">
@@ -286,9 +305,37 @@ export default function SetupScreen({
               onClick={() => setCategory(c)}
             />
           ))}
+          <CategoryChip
+            name={WORD_COMPLETE_THEME}
+            theme={getTheme(WORD_COMPLETE_THEME)}
+            selected={isWordComplete}
+            onClick={() => setCategory(WORD_COMPLETE_THEME)}
+          />
         </div>
 
-        <p className="cat-group__header">내 카테고리</p>
+        {isWordComplete && (
+          <div className="word-topic">
+            <p className="cat-group__header">주제 선택</p>
+            <div className="chip-row chip-row--wrap">
+              {WORD_COMPLETE_PRESETS.map((p) =>
+                chip(p, wordTopic.trim() === p, () => setWordTopic(p))
+              )}
+            </div>
+            <input
+              type="text"
+              className="input"
+              placeholder="주제 직접 입력 — 예: 영화 제목, 야구 선수, 라면 종류"
+              value={wordTopic}
+              onChange={(e) => setWordTopic(e.target.value)}
+            />
+            <p className="hint-text">
+              선택한 주제의 실존 항목으로 앞 2글자만 보이는 문제가 나옵니다(예: 인터[][][] → 인터스텔라).
+              사자성어 주제는 위키백과에서 받아옵니다.
+            </p>
+          </div>
+        )}
+
+        <p className="cat-group__header">내 테마</p>
         {userCategories.length > 0 && (
           <ul className="my-cat-list">
             {userCategories.map((c) => (
@@ -320,7 +367,7 @@ export default function SetupScreen({
           <input
             type="text"
             className="input"
-            placeholder="카테고리(주제) — 예: 영화 제목 맞추기"
+            placeholder="테마 이름 — 예: 영화 제목 맞추기"
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
@@ -351,7 +398,7 @@ export default function SetupScreen({
         {recommended.length > 0 && (
           <>
             <p className="cat-group__header cat-group__header--gold">
-              ✨ 오늘의 추천 <span className="cat-group__sub">하루 1회 변경</span>
+              ✨ 오늘의 추천 테마 <span className="cat-group__sub">하루 1회 변경</span>
             </p>
             <div className="chip-row chip-row--wrap">
               {recommended.map((c) => (
@@ -372,10 +419,14 @@ export default function SetupScreen({
         <button
           type="button"
           className="btn btn--primary btn--big"
-          disabled={!category}
+          disabled={!canStart}
           onClick={start}
         >
-          {category ? '퀴즈 시작' : '카테고리를 선택하세요'}
+          {canStart
+            ? '퀴즈 시작'
+            : isWordComplete
+              ? '주제를 입력하세요'
+              : '테마를 선택하세요'}
         </button>
       </div>
     </div>
