@@ -71,7 +71,28 @@ export const STORAGE_KEYS = {
   timerSec: 'quiz.timerSec', // 0 = 타이머 없음, 1~30 = 제한 초
   setup: 'quiz.setup', // 홈 화면에서 마지막으로 선택한 옵션들
   wikiCache: 'quiz.wikiCache', // 위키백과 분류 목록 캐시
+  bankDraft: 'quiz.bankDraft', // 공유 전 로컬 문제 누적(초안)
+  githubToken: 'quiz.githubToken', // 문제은행 업로드용 GitHub 토큰(소유자 전용)
   stats: 'quiz.stats',
+};
+
+// 공유 문제은행 저장소/파일 (공개 정보)
+export const GITHUB_REPO = '2ynhn/quiz-static';
+export const GITHUB_BRANCH = 'main';
+export const BANK_PATHS = {
+  general: 'bank/general.json',
+  wordcomplete: 'bank/wordcomplete.json',
+};
+// 읽기: raw(즉시 반영, CORS *) → 실패 시 jsDelivr CDN
+export const BANK_READ_URLS = {
+  general: [
+    `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/bank/general.json`,
+    `https://cdn.jsdelivr.net/gh/${GITHUB_REPO}@${GITHUB_BRANCH}/bank/general.json`,
+  ],
+  wordcomplete: [
+    `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/bank/wordcomplete.json`,
+    `https://cdn.jsdelivr.net/gh/${GITHUB_REPO}@${GITHUB_BRANCH}/bank/wordcomplete.json`,
+  ],
 };
 
 // 중복 회피 누적 제외 목록 — 키당 최대 보관 개수 / 프롬프트 전달 개수

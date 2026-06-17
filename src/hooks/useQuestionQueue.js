@@ -3,6 +3,10 @@ import { BATCH_SIZE, PREFETCH_THRESHOLD } from '../constants.js';
 import { generateQuestions, AiError } from '../ai/index.js';
 import { hasTheme, rememberTheme } from '../theme/themes.js';
 import { getAskedForPrompt, getAskedSet, addAsked } from '../data/askedAnswers.js';
+import { fetchBankGeneral, fetchBankWordMap } from '../data/bank.js';
+import { normalizeForLeak } from '../ai/shared.js';
+import { usesTrivia } from '../categoryRules.js';
+import { applyBracketMask } from '../mask.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -17,11 +21,12 @@ function shuffle(arr) {
   return a;
 }
 
-// 문제 공급 큐: AI 배치 생성 → 큐 소비, 잔여 3개 이하 시 백그라운드 선행 로딩.
-// AI 실패 시 내장 폴백 문제로 전환한다.
+// 문제 공급 큐.
+//  - 키 있음: AI 생성('ai'). 잔여 1개 이하 시 백그라운드 선행 로딩.
+//  - 키 없음: 공유 문제은행('bank'). 없으면 내장 폴백('fallback').
 export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = '', wordComplete = null }) {
   const [current, setCurrent] = useState(null);
-  const [source, setSource] = useState(aiConfig.apiKey ? 'ai' : 'fallback');
+  const [source, setSource] = useState(aiConfig.apiKey ? 'ai' : 'bank');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
 
@@ -42,53 +47,94 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
     return fallbackPileRef.current.pop();
   }, [category]);
 
-  const switchToFallback = useCallback(
-    (err) => {
-      setSource('fallback');
-      if (err instanceof AiError) {
-        setNotice({ type: err.type, message: err.message });
-      } else {
-        setNotice({ type: 'network', message: 'AI 문제 생성에 실패해 기본 문제로 전환합니다.' });
-      }
-    },
-    []
-  );
+  const switchToFallback = useCallback((err) => {
+    setSource('fallback');
+    if (err instanceof AiError) {
+      setNotice({ type: err.type, message: err.message });
+    } else {
+      setNotice({ type: 'info', message: '기본 문제로 진행합니다.' });
+    }
+  }, []);
 
-  // 동시 호출 시 진행 중인 요청 하나를 공유한다 (StrictMode 이중 실행·선행 로딩 경합 방지)
-  const fillFromAi = useCallback(() => {
+  // 키 없는 사용자용: 공유 문제은행에서 현재 테마에 맞는 문제 목록을 만든다.
+  const loadBankQuestions = useCallback(async () => {
+    if (wordComplete) {
+      const map = await fetchBankWordMap();
+      const topic = wordComplete.topic || category;
+      const names = Array.isArray(map[topic]) ? map[topic] : [];
+      const reveal = wordComplete.revealCount || 2;
+      return names
+        .map((n) => {
+          const masked = applyBracketMask(n, reveal);
+          return masked ? { question: masked, answer: n, hint: '', altAnswers: [] } : null;
+        })
+        .filter(Boolean);
+    }
+    if (usesTrivia(category)) {
+      return await fetchBankGeneral();
+    }
+    return [];
+  }, [category, wordComplete]);
+
+  // 진행 중 요청 하나를 공유(StrictMode 이중 실행·선행 로딩 경합 방지)
+  const fill = useCallback(() => {
     if (!fillPromiseRef.current) {
       fillPromiseRef.current = (async () => {
         try {
-          const { questions, theme } = await generateQuestions({
-            provider: aiConfig.provider,
-            apiKey: aiConfig.apiKey,
-            model: aiConfig.model,
-            category,
-            difficulty,
-            count: BATCH_SIZE,
-            // A-1 누적 제외 목록: 프롬프트엔 최근 80개, 클라이언트 필터엔 전체 정규화 집합
-            excludeKeywords: getAskedForPrompt(category, difficulty),
-            excludeSet: getAskedSet(category, difficulty),
-            wantTheme: !hasTheme(category),
-            typeHint,
-            wordComplete,
-          });
-          if (theme) rememberTheme(category, theme);
-          queueRef.current.push(...questions);
+          if (sourceRef.current === 'bank') {
+            const qs = await loadBankQuestions();
+            const seen = getAskedSet(category, difficulty);
+            const fresh = [];
+            for (const q of qs) {
+              const k = normalizeForLeak(q.answer);
+              if (k && !seen.has(k)) {
+                seen.add(k);
+                fresh.push(q);
+              }
+            }
+            if (fresh.length === 0) throw new Error('empty bank');
+            queueRef.current.push(...shuffle(fresh));
+          } else {
+            const { questions, theme } = await generateQuestions({
+              provider: aiConfig.provider,
+              apiKey: aiConfig.apiKey,
+              model: aiConfig.model,
+              category,
+              difficulty,
+              count: BATCH_SIZE,
+              excludeKeywords: getAskedForPrompt(category, difficulty),
+              excludeSet: getAskedSet(category, difficulty),
+              wantTheme: !hasTheme(category),
+              typeHint,
+              wordComplete,
+            });
+            if (theme) rememberTheme(category, theme);
+            queueRef.current.push(...questions);
+          }
         } finally {
           fillPromiseRef.current = null;
         }
       })();
     }
     return fillPromiseRef.current;
-  }, [aiConfig.provider, aiConfig.apiKey, aiConfig.model, category, difficulty, typeHint, wordComplete]);
+  }, [
+    aiConfig.provider,
+    aiConfig.apiKey,
+    aiConfig.model,
+    category,
+    difficulty,
+    typeHint,
+    wordComplete,
+    loadBankQuestions,
+  ]);
 
   const advance = useCallback(async () => {
-    if (sourceRef.current === 'ai') {
+    const src = sourceRef.current;
+    if (src === 'ai' || src === 'bank') {
       if (queueRef.current.length === 0) {
         setLoading(true);
         try {
-          await fillFromAi();
+          await fill();
         } catch (err) {
           switchToFallback(err);
           setCurrent(nextFallback());
@@ -102,18 +148,16 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
         addAsked(category, difficulty, [q.answer]);
         setCurrent(q);
         setLoading(false);
-        if (queueRef.current.length <= PREFETCH_THRESHOLD) {
-          // 백그라운드 선행 로딩 — 실패해도 다음 advance에서 폴백 처리됨
-          fillFromAi().catch(() => {});
+        if (src === 'ai' && queueRef.current.length <= PREFETCH_THRESHOLD) {
+          fill().catch(() => {}); // 백그라운드 선행 로딩(키 있을 때만)
         }
         return;
       }
-      // 채우기는 성공했지만 비어 있는 비정상 상황 → 폴백
       switchToFallback(null);
     }
     setCurrent(nextFallback());
     setLoading(false);
-  }, [fillFromAi, nextFallback, switchToFallback]);
+  }, [fill, nextFallback, switchToFallback, category, difficulty]);
 
   useEffect(() => {
     if (initRef.current) return;

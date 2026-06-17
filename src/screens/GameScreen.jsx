@@ -3,6 +3,7 @@ import { useQuestionQueue } from '../hooks/useQuestionQueue.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { PROVIDERS } from '../constants.js';
 import { getTheme } from '../theme/themes.js';
+import { addDraftGeneral, addDraftWord } from '../data/bank.js';
 import PatternBg from '../components/PatternBg.jsx';
 import CategoryChip from '../components/CategoryChip.jsx';
 import CountdownBar from '../components/CountdownBar.jsx';
@@ -60,33 +61,49 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
     });
   };
 
-  const judge = (isCorrect) => {
+  // 다음 문제로 (verdict: 'correct' | 'wrong' | 'bad')
+  // 'bad'(잘못된 문제): 점수 미집계 + 문제은행 미추가, 다음 문제로만 이동.
+  const judge = (verdict) => {
     clearAutoAdvance();
-    const nextTeams = teams.map((t, i) =>
-      i === turnIdx
-        ? { ...t, correct: t.correct + (isCorrect ? 1 : 0), attempted: t.attempted + 1 }
-        : t
-    );
-    setTeams(nextTeams);
 
-    if (mode === 'team') {
-      if (turnMode === 'alternate') {
-        setTurnIdx((turnIdx + 1) % teams.length);
-      } else {
-        const nextStreak = streak + 1;
-        if (nextStreak >= consecutiveCount) {
-          setStreak(0);
-          setTurnIdx((turnIdx + 1) % teams.length);
-        } else {
-          setStreak(nextStreak);
-        }
+    if (verdict !== 'bad') {
+      const isCorrect = verdict === 'correct';
+      setTeams(
+        teams.map((t, i) =>
+          i === turnIdx
+            ? { ...t, correct: t.correct + (isCorrect ? 1 : 0), attempted: t.attempted + 1 }
+            : t
+        )
+      );
+      // 키 보유자가 검증한 AI 생성 문제만 공유 초안에 누적(은행/폴백 문제는 제외)
+      if (source === 'ai' && aiConfig.apiKey && current) {
+        if (wordComplete) addDraftWord(wordComplete.topic || category, current.answer);
+        else addDraftGeneral(current);
       }
+
+      advanceTurn();
     }
 
     setRevealed(false);
     setHintShown(false);
     setTimedOut(false);
     advance();
+  };
+
+  // 팀전 차례 전환(정답/오답일 때만)
+  const advanceTurn = () => {
+    if (mode !== 'team') return;
+    if (turnMode === 'alternate') {
+      setTurnIdx((turnIdx + 1) % teams.length);
+    } else {
+      const nextStreak = streak + 1;
+      if (nextStreak >= consecutiveCount) {
+        setStreak(0);
+        setTurnIdx((turnIdx + 1) % teams.length);
+      } else {
+        setStreak(nextStreak);
+      }
+    }
   };
 
   // 타이머: 문제 표시 중(로딩·정답확인 전)에만 가동. 0 도달 시 정답 공개 + 자동 오답 + 자동 진행
@@ -98,7 +115,7 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
     onExpire: () => {
       setRevealed(true);
       setTimedOut(true);
-      autoAdvanceRef.current = setTimeout(() => judge(false), 1600);
+      autoAdvanceRef.current = setTimeout(() => judge('wrong'), 1600);
     },
   });
 
@@ -157,7 +174,11 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
         <PatternBg pattern={theme.pattern} color={theme.color} opacity={0.06} toneLightness={40} />
         <p className="question-source">
           {theme.emoji}{' '}
-          {source === 'ai' ? PROVIDERS[aiConfig.provider].sourceLabel : '기본 문제입니다'}
+          {source === 'ai'
+            ? PROVIDERS[aiConfig.provider].sourceLabel
+            : source === 'bank'
+              ? '공유된 문제입니다'
+              : '기본 문제입니다'}
         </p>
         {loading || !current ? (
           <p className="question-text question-text--loading">문제를 만들고 있어요…</p>
@@ -225,14 +246,19 @@ export default function GameScreen({ config, aiConfig, onFinish }) {
             </button>
           </div>
         ) : (
-          <div className="btn-row">
-            <button type="button" className="btn btn--correct" onClick={() => judge(true)}>
-              ⭕ 정답
+          <>
+            <div className="btn-row">
+              <button type="button" className="btn btn--correct" onClick={() => judge('correct')}>
+                ⭕ 정답
+              </button>
+              <button type="button" className="btn btn--wrong" onClick={() => judge('wrong')}>
+                ❌ 오답
+              </button>
+            </div>
+            <button type="button" className="btn btn--bad" onClick={() => judge('bad')}>
+              🚫 잘못된 문제 (집계·공유 제외)
             </button>
-            <button type="button" className="btn btn--wrong" onClick={() => judge(false)}>
-              ❌ 오답
-            </button>
-          </div>
+          </>
         )}
       </footer>
     </div>

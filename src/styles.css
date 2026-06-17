@@ -366,6 +366,15 @@ body {
   font-weight: 700;
 }
 
+.btn--bad {
+  width: 100%;
+  margin-top: 8px;
+  border-color: var(--fg-dim);
+  color: var(--fg-dim);
+  background: transparent;
+  font-size: 14px;
+}
+
 .btn-row {
   display: flex;
   gap: 10px;

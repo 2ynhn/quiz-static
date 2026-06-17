@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { validateKey, AiError } from '../ai/index.js';
-import { PROVIDERS, PROVIDER_IDS } from '../constants.js';
+import { PROVIDERS, PROVIDER_IDS, STORAGE_KEYS, GITHUB_REPO } from '../constants.js';
+import { storage } from '../storage.js';
 import { countAsked, clearAsked } from '../data/askedAnswers.js';
+import { draftCounts, clearDraft } from '../data/bank.js';
+import { uploadBank } from '../data/github.js';
 
 export default function SettingsScreen({
   provider,
@@ -15,6 +18,40 @@ export default function SettingsScreen({
   const [keyStatus, setKeyStatus] = useState(null); // { ok, message }
   const [validating, setValidating] = useState(false);
   const [askedCount, setAskedCount] = useState(() => countAsked());
+  // 문제은행 공유(소유자)
+  const [ghToken, setGhToken] = useState(() => storage.get(STORAGE_KEYS.githubToken, '') || '');
+  const [draft, setDraft] = useState(() => draftCounts());
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(null); // { ok, message }
+
+  const saveGhToken = (v) => {
+    setGhToken(v);
+    if (v) storage.set(STORAGE_KEYS.githubToken, v);
+    else storage.remove(STORAGE_KEYS.githubToken);
+  };
+
+  const shareBank = async () => {
+    const token = ghToken.trim();
+    if (!token) return;
+    setUploading(true);
+    setUploadStatus(null);
+    try {
+      const r = await uploadBank(token);
+      if (r.skipped) {
+        setUploadStatus({ ok: true, message: '공유할 새 문제가 없습니다.' });
+      } else {
+        setUploadStatus({
+          ok: true,
+          message: `공유 완료 — 일반상식 ${r.general}개, 단어완성 ${r.wordcomplete}개 추가됨 ✓`,
+        });
+      }
+      setDraft(draftCounts());
+    } catch (e) {
+      setUploadStatus({ ok: false, message: e instanceof Error ? e.message : '업로드 실패' });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const meta = PROVIDERS[provider];
   const entry = providerSettings[provider];
@@ -150,6 +187,51 @@ export default function SettingsScreen({
         >
           출제 기록 초기화
         </button>
+      </section>
+
+      <section className="section">
+        <h2 className="section__title">문제은행 공유 (소유자)</h2>
+        <p className="hint-text">
+          내가 풀며 검증한 문제가 로컬에 쌓입니다(잘못된 문제 제외). 현재 미공유:
+          일반상식 {draft.general}개 · 단어완성 {draft.wordcomplete}개. 공유하면 키 없는
+          사용자도 이 문제들을 풀 수 있어요.
+        </p>
+        <input
+          type="password"
+          className="input"
+          placeholder="GitHub 토큰 (fine-grained, 이 저장소 contents:write)"
+          value={ghToken}
+          onChange={(e) => saveGhToken(e.target.value)}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={uploading || !ghToken.trim() || draft.general + draft.wordcomplete === 0}
+          onClick={shareBank}
+        >
+          {uploading ? '공유 중…' : '문제은행에 공유'}
+        </button>
+        {uploadStatus && (
+          <p className={`key-status ${uploadStatus.ok ? 'key-status--ok' : 'key-status--err'}`}>
+            {uploadStatus.message}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn--small btn--ghost"
+          disabled={draft.general + draft.wordcomplete === 0}
+          onClick={() => {
+            clearDraft();
+            setDraft(draftCounts());
+          }}
+        >
+          미공유 초안 비우기
+        </button>
+        <p className="hint-text">
+          토큰은 이 기기에만 저장됩니다. <code>{GITHUB_REPO}</code> 저장소에만 쓰기 권한이 있는
+          fine-grained 토큰을 권장합니다.
+        </p>
       </section>
 
       <p className="hint-text hint-text--footer">
