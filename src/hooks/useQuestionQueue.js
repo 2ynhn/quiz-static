@@ -6,7 +6,7 @@ import { getAskedForPrompt, getAskedSet, addAsked } from '../data/askedAnswers.j
 import { fetchBankGeneral, fetchBankWordMap } from '../data/bank.js';
 import { normalizeForLeak } from '../ai/shared.js';
 import { usesTrivia } from '../categoryRules.js';
-import { applyBracketMask } from '../mask.js';
+import { applyBracketMask, revealCountForDifficulty } from '../mask.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -62,10 +62,11 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       const map = await fetchBankWordMap();
       const topic = wordComplete.topic || category;
       const names = Array.isArray(map[topic]) ? map[topic] : [];
-      const reveal = wordComplete.revealCount || 2;
       return names
         .map((n) => {
-          const masked = applyBracketMask(n, reveal);
+          // 빈 칸 수가 난이도에 따라 달라지도록 단어 길이별로 가림 수를 계산
+          const len = [...String(n)].length;
+          const masked = applyBracketMask(n, revealCountForDifficulty(len, difficulty));
           return masked ? { question: masked, answer: n, hint: '', altAnswers: [] } : null;
         })
         .filter(Boolean);
@@ -74,7 +75,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       return await fetchBankGeneral();
     }
     return [];
-  }, [category, wordComplete]);
+  }, [category, difficulty, wordComplete]);
 
   // 진행 중 요청 하나를 공유(StrictMode 이중 실행·선행 로딩 경합 방지)
   const fill = useCallback(() => {

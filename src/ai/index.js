@@ -27,7 +27,13 @@ import {
   normalizeItems,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
-import { parseMaskTemplate, applyMask, applyBracketMask } from '../mask.js';
+import {
+  parseMaskTemplate,
+  applyMask,
+  applyBracketMask,
+  revealCountForDifficulty,
+  fitsDifficulty,
+} from '../mask.js';
 import { classifyCategory, usesTrivia } from '../categoryRules.js';
 import { fetchTrivia } from '../data/trivia.js';
 import { fetchIdioms } from '../data/wiki.js';
@@ -54,7 +60,7 @@ async function generateWordCompletion({
   model,
   topic,
   count,
-  revealCount,
+  difficulty,
   seen,
   excludeKeywords = [],
 }) {
@@ -74,7 +80,14 @@ async function generateWordCompletion({
           apiKey,
           model,
           system: WORDLIST_SYSTEM_PROMPT,
-          user: buildWordListUserPrompt({ topic, count: Math.max(count + 6, 12), excludeKeywords }),
+          user: buildWordListUserPrompt({
+            topic,
+            count: Math.max(count + 6, 12),
+            excludeKeywords,
+            difficulty,
+            // 매 생성마다 다른 시드 → 같은 모델이라도 다른 항목을 고르게 해 반복을 줄인다
+            seed: Math.floor(Math.random() * 100000),
+          }),
         })
       );
       names = normalizeItems(parsed);
@@ -84,15 +97,21 @@ async function generateWordCompletion({
   }
   if (names.length === 0) return null;
 
-  const out = [];
+  // 가린 칸 수가 난이도에 따라 달라지도록 단어 길이별로 reveal 수를 계산한다.
+  // 난이도 빈 칸 하한을 만족하는 단어(fits)를 우선 배치하고, 부족하면 나머지로 채운다.
+  const fits = [];
+  const others = [];
   for (const name of names) {
-    const masked = applyBracketMask(name, revealCount);
-    if (!masked) continue; // 가릴 글자가 없음(짧은 이름)
     const norm = normalizeForLeak(name);
     if (!norm || seen.has(norm)) continue;
+    const len = [...String(name)].length;
+    const masked = applyBracketMask(name, revealCountForDifficulty(len, difficulty));
+    if (!masked) continue; // 가릴 글자가 없음(짧은 이름)
     seen.add(norm);
-    out.push({ question: masked, answer: name, hint: '', altAnswers: [] });
+    const item = { question: masked, answer: name, hint: '', altAnswers: [] };
+    (fitsDifficulty(len, difficulty) ? fits : others).push(item);
   }
+  const out = [...fits, ...others];
   return out.length > 0 ? out : null;
 }
 
@@ -343,8 +362,8 @@ export async function generateQuestions({
       apiKey,
       model,
       topic: wordComplete.topic || category,
-      count: Math.max(count, 10),
-      revealCount: wordComplete.revealCount || 2,
+      count: Math.max(count, 12),
+      difficulty,
       seen,
       excludeKeywords: excludeKeywords.slice(-80),
     });

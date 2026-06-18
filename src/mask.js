@@ -37,3 +37,25 @@ export function applyBracketMask(answer, revealCount) {
   const hidden = chars.length - revealCount;
   return chars.slice(0, revealCount).join('') + '[]'.repeat(hidden);
 }
+
+// 난이도 → 가릴(빈 칸) 글자 수 목표: 하 1~2칸, 중 3~4칸, 상 5칸 이상.
+function hiddenTargetFor(difficulty) {
+  if (difficulty === '하') return 2;
+  if (difficulty === '상') return 6;
+  return 4; // 중(기본)
+}
+
+// 단어 길이와 난이도로 '앞에서 보여줄 글자 수'를 계산한다.
+// 최소 1글자는 보여주고, 가능한 범위에서 난이도별 목표 칸 수만큼 가린다.
+//  - 하: 1~2칸, 중: 3~4칸, 상: 5칸 이상 (단어가 짧으면 가능한 만큼만)
+export function revealCountForDifficulty(length, difficulty) {
+  const target = hiddenTargetFor(difficulty);
+  const hidden = Math.min(target, Math.max(1, length - 1)); // 최소 1글자 노출 + 최소 1칸 가림
+  return Math.max(1, length - hidden);
+}
+
+// 해당 난이도의 빈 칸 하한(하 1, 중 3, 상 5)을 채울 수 있는 길이인지 — 난이도별 단어 선별용
+export function fitsDifficulty(length, difficulty) {
+  const min = difficulty === '하' ? 1 : difficulty === '상' ? 5 : 3;
+  return length - 1 >= min; // 최소 1글자는 보이므로 가릴 수 있는 최대 칸 = length-1
+}

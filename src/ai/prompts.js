@@ -161,14 +161,22 @@ export const WORDLIST_SYSTEM_PROMPT = `당신은 특정 주제에 해당하는 '
 - 각 이름은 공백 없이 이어진 2글자 이상의 단어 형태가 바람직합니다(예: 인터스텔라, 코카콜라, 동방신기).
 - 반드시 {"items":["이름1","이름2", ...]} 형태의 JSON만 출력하세요.`;
 
-export function buildWordListUserPrompt({ topic, count, excludeKeywords = [] }) {
+export function buildWordListUserPrompt({ topic, count, excludeKeywords = [], difficulty = '중', seed = 0 }) {
   const exclude =
     excludeKeywords.length > 0
-      ? ` 다음은 이미 사용했으니 제외: ${excludeKeywords.join(', ')}.`
+      ? ` 다음은 이미 사용했으니 반드시 제외하고, 이와 겹치지 않는 새로운 항목으로만 채우세요: ${excludeKeywords.join(', ')}.`
       : '';
+  // 난이도별 글자 수 선호 — 가린 칸 수가 난이도에 따라 달라지도록 길이를 유도
+  const lenHint =
+    difficulty === '상'
+      ? ' 가능하면 6글자 이상의 다소 긴 이름 위주로.'
+      : difficulty === '하'
+        ? ' 짧고 누구나 아는 대표 이름 위주로(2~4글자).'
+        : ' 4~6글자 정도의 이름 위주로.';
   return (
     `주제: ${topic}. 이 주제에 해당하는 실존하고 유명한 항목 이름 ${count}개를 나열하세요.` +
-    `${exclude} 가능하면 너무 길지 않은(2~6글자) 대표 이름 위주로.`
+    `${exclude}${lenHint}` +
+    ` 다양성 시드: ${seed}. 이 시드에 맞춰 매번 다른 항목이 골고루 나오도록, 가장 뻔한 1순위만 반복하지 말고 폭넓게(덜 알려졌지만 실존하는 항목도 포함) 선택하세요.`
   );
 }
 
