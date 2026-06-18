@@ -96,8 +96,10 @@ export const BANK_READ_URLS = {
 };
 
 // 중복 회피 누적 제외 목록 — 키당 최대 보관 개수 / 프롬프트 전달 개수
-export const ASKED_MAX_PER_KEY = 100;
-export const ASKED_PROMPT_LIMIT = 80;
+// 실제 중복 차단은 로컬 필터 집합(보관 개수)이 보장하므로 넉넉히 보관(500)하고,
+// 프롬프트로는 토큰 절약을 위해 일부(150)만 힌트로 전달한다.
+export const ASKED_MAX_PER_KEY = 500;
+export const ASKED_PROMPT_LIMIT = 150;
 
 // 타이머 제한시간 프리셋(초). 0 = 사용 안 함
 export const TIMER_PRESETS = [0, 10, 15, 20, 30];

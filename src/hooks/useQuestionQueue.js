@@ -30,6 +30,10 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
 
+  // 단어 완성은 난이도와 무관하게 같은 정답을 회피해야 한다(영화·사자성어·브랜드·아이돌 등 주제 단위 풀).
+  // 일반 카테고리는 기존대로 난이도별로 누적/회피한다.
+  const askedDifficulty = wordComplete ? '*' : difficulty;
+
   const queueRef = useRef([]);
   const fillPromiseRef = useRef(null);
   const initRef = useRef(false);
@@ -84,7 +88,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
         try {
           if (sourceRef.current === 'bank') {
             const qs = await loadBankQuestions();
-            const seen = getAskedSet(category, difficulty);
+            const seen = getAskedSet(category, askedDifficulty);
             const fresh = [];
             for (const q of qs) {
               const k = normalizeForLeak(q.answer);
@@ -103,8 +107,8 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
               category,
               difficulty,
               count: BATCH_SIZE,
-              excludeKeywords: getAskedForPrompt(category, difficulty),
-              excludeSet: getAskedSet(category, difficulty),
+              excludeKeywords: getAskedForPrompt(category, askedDifficulty),
+              excludeSet: getAskedSet(category, askedDifficulty),
               wantTheme: !hasTheme(category),
               typeHint,
               wordComplete,
@@ -124,6 +128,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
     aiConfig.model,
     category,
     difficulty,
+    askedDifficulty,
     typeHint,
     wordComplete,
     loadBankQuestions,
@@ -146,7 +151,8 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       const q = queueRef.current.shift();
       if (q) {
         // 출제 시점에 정답을 누적 기록 → 시간초과·스킵 포함 모든 출제가 다음 배치에서 제외됨
-        addAsked(category, difficulty, [q.answer]);
+        // 단어 완성은 난이도 무관 풀(askedDifficulty='*')에 기록되어 난이도를 바꿔도 회피된다
+        addAsked(category, askedDifficulty, [q.answer]);
         setCurrent(q);
         setLoading(false);
         if (src === 'ai' && queueRef.current.length <= PREFETCH_THRESHOLD) {
@@ -158,7 +164,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
     }
     setCurrent(nextFallback());
     setLoading(false);
-  }, [fill, nextFallback, switchToFallback, category, difficulty]);
+  }, [fill, nextFallback, switchToFallback, category, askedDifficulty]);
 
   useEffect(() => {
     if (initRef.current) return;
