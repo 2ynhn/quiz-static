@@ -29,13 +29,13 @@ export function applyMask(answer, revealCount) {
   return chars.slice(0, revealCount).join('') + MASK_TOKEN;
 }
 
-// 단어 완성용: 앞 N글자만 남기고 남은 글자 수만큼 '[]'로 가린다 (길이 노출).
-// 예: 인터스텔라, 2 → "인터[][][]" / 결초보은, 2 → "결초[][]"
+// 단어 완성용: 앞 N글자만 남기고 남은 글자 수만큼 '[ ]'로 가린다 (길이 노출).
+// 예: 인터스텔라, 2 → "인터[ ][ ][ ]" / 결초보은, 2 → "결초[ ][ ]"
 export function applyBracketMask(answer, revealCount) {
   const chars = [...String(answer)];
   if (chars.length <= revealCount) return null;
   const hidden = chars.length - revealCount;
-  return chars.slice(0, revealCount).join('') + '[]'.repeat(hidden);
+  return chars.slice(0, revealCount).join('') + '[ ]'.repeat(hidden);
 }
 
 // 난이도 → 가릴(빈 칸) 글자 수 목표: 하 1~2칸, 중 3~4칸, 상 5칸 이상.
@@ -45,17 +45,24 @@ function hiddenTargetFor(difficulty) {
   return 4; // 중(기본)
 }
 
+// 난이도별 '앞에서 최소로 보여줄 글자 수' — 중·상은 한 글자만 보이면 너무 어려우므로 최소 2글자.
+function minRevealFor(difficulty) {
+  return difficulty === '하' ? 1 : 2;
+}
+
 // 단어 길이와 난이도로 '앞에서 보여줄 글자 수'를 계산한다.
-// 최소 1글자는 보여주고, 가능한 범위에서 난이도별 목표 칸 수만큼 가린다.
+// 난이도별 최소 노출 글자(중·상 2글자)를 보장하고, 남는 범위에서 목표 칸 수만큼 가린다.
 //  - 하: 1~2칸, 중: 3~4칸, 상: 5칸 이상 (단어가 짧으면 가능한 만큼만)
 export function revealCountForDifficulty(length, difficulty) {
   const target = hiddenTargetFor(difficulty);
-  const hidden = Math.min(target, Math.max(1, length - 1)); // 최소 1글자 노출 + 최소 1칸 가림
+  const minReveal = minRevealFor(difficulty);
+  // 최소 노출 글자를 뺀 나머지를 가림 후보로 두고, 목표치와 비교(최소 1칸은 가림)
+  const hidden = Math.min(target, Math.max(1, length - minReveal));
   return Math.max(1, length - hidden);
 }
 
 // 해당 난이도의 빈 칸 하한(하 1, 중 3, 상 5)을 채울 수 있는 길이인지 — 난이도별 단어 선별용
 export function fitsDifficulty(length, difficulty) {
   const min = difficulty === '하' ? 1 : difficulty === '상' ? 5 : 3;
-  return length - 1 >= min; // 최소 1글자는 보이므로 가릴 수 있는 최대 칸 = length-1
+  return length - minRevealFor(difficulty) >= min; // 최소 노출 글자를 제외한 가용 칸 수
 }
