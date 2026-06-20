@@ -329,7 +329,7 @@ export default function SetupScreen({
               onChange={(e) => setWordTopic(e.target.value)}
             />
             <p className="hint-text">
-              선택한 주제의 실존 항목으로 일부 글자를 가린 문제가 나옵니다(예: 인터[][][] → 인터스텔라).
+              선택한 주제의 실존 항목으로 일부 글자를 가린 문제가 나옵니다(예: 인터□□□ → 인터스텔라).
               난이도에 따라 빈 칸 수가 달라집니다 — 하: 1~2칸, 중: 3~4칸, 상: 5칸 이상.
               사자성어 주제는 위키백과에서 받아옵니다.
             </p>

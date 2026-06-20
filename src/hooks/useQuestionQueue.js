@@ -40,6 +40,8 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
   const fallbackPileRef = useRef([]);
   const sourceRef = useRef(source);
   sourceRef.current = source;
+  // bank 정답 캐시: 세션 최초 1회 fetch 후 재사용 — AI 생성 시 bank에 이미 있는 정답을 제외하는 데 쓴다.
+  const bankExcludeRef = useRef(null);
 
   const nextFallback = useCallback(() => {
     if (fallbackPileRef.current.length === 0) {
@@ -59,6 +61,33 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       setNotice({ type: 'info', message: '기본 문제로 진행합니다.' });
     }
   }, []);
+
+  // AI 생성 시 bank JSON 정답을 제외하기 위한 집합 — 세션 최초 1회만 fetch해 캐시한다.
+  const loadBankExclude = useCallback(async () => {
+    if (bankExcludeRef.current !== null) return bankExcludeRef.current;
+    const set = new Set();
+    try {
+      if (wordComplete) {
+        const map = await fetchBankWordMap();
+        const topic = wordComplete.topic || category;
+        const names = Array.isArray(map[topic]) ? map[topic] : [];
+        for (const n of names) {
+          const norm = normalizeForLeak(n);
+          if (norm) set.add(norm);
+        }
+      } else if (usesTrivia(category)) {
+        const qs = await fetchBankGeneral();
+        for (const q of qs) {
+          const norm = normalizeForLeak(q.answer);
+          if (norm) set.add(norm);
+        }
+      }
+    } catch {
+      // 네트워크 실패 시 빈 집합으로 진행(생성은 계속)
+    }
+    bankExcludeRef.current = set;
+    return set;
+  }, [category, wordComplete]);
 
   // 키 없는 사용자용: 공유 문제은행에서 현재 테마에 맞는 문제 목록을 만든다.
   const loadBankQuestions = useCallback(async () => {
@@ -100,6 +129,12 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
             if (fresh.length === 0) throw new Error('empty bank');
             queueRef.current.push(...shuffle(fresh));
           } else {
+            // bank에 이미 있는 정답 + 이번 세션에 출제된 정답을 합산해 제외 집합 구성
+            const bankExclude = await loadBankExclude();
+            const askedSet = getAskedSet(category, askedDifficulty);
+            const excludeSet = bankExclude.size > 0
+              ? new Set([...askedSet, ...bankExclude])
+              : askedSet;
             const { questions, theme } = await generateQuestions({
               provider: aiConfig.provider,
               apiKey: aiConfig.apiKey,
@@ -108,7 +143,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
               difficulty,
               count: BATCH_SIZE,
               excludeKeywords: getAskedForPrompt(category, askedDifficulty),
-              excludeSet: getAskedSet(category, askedDifficulty),
+              excludeSet,
               wantTheme: !hasTheme(category),
               typeHint,
               wordComplete,
@@ -132,6 +167,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
     typeHint,
     wordComplete,
     loadBankQuestions,
+    loadBankExclude,
   ]);
 
   const advance = useCallback(async () => {
