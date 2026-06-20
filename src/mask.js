@@ -29,13 +29,50 @@ export function applyMask(answer, revealCount) {
   return chars.slice(0, revealCount).join('') + MASK_TOKEN;
 }
 
-// 단어 완성용: 앞 N글자만 남기고 남은 글자 수만큼 '□'(U+25A1)로 가린다 (길이 노출).
-// 예: 인터스텔라, 2 → "인터□□□" / 결초보은, 2 → "결초□□"
+// 공백 제외 글자 수 (단어 완성은 공백을 글자 수에 포함하지 않는다)
+export function visibleLength(s) {
+  return [...String(s)].filter((c) => c !== ' ').length;
+}
+
+// 단어 완성용 마스킹(공백 인정): 앞 N글자만 남기고 나머지를 '□'(U+25A1)로 가린다.
+//  - 공백은 글자 수에 포함하지 않고, 출제 시 그대로 보여준다. (예: "분노의 질주" → "분노의 □□")
+//  - 가리는 칸(□)은 공백을 가로지르지 않는다. 가려지는 구간은 '마지막 공백 이후'(마지막 단어 쪽)의
+//    연속 구간이어야 하므로, 노출 글자 수가 마지막 공백 앞 글자 수보다 작으면 그만큼 끌어올린다.
+//    ('분노의 □□' OK / '분노□ □□' 금지)
+//  - revealCount는 '공백 제외' 기준 앞에서 보여줄 글자 수. 가릴 글자가 없으면 null.
 export function applyBracketMask(answer, revealCount) {
-  const chars = [...String(answer)];
-  if (chars.length <= revealCount) return null;
-  const hidden = chars.length - revealCount;
-  return chars.slice(0, revealCount).join('') + '□'.repeat(hidden);
+  const chars = [...String(answer).replace(/\s+/g, ' ').trim()];
+  const total = chars.filter((c) => c !== ' ').length; // 공백 제외 글자 수
+  if (total <= revealCount) return null; // 가릴 글자가 없음
+
+  // 마지막 공백 앞의 '공백 제외' 글자 수 = 가릴 수 없는(반드시 보여야 하는) 최소 노출 글자 수
+  let lastSpace = -1;
+  for (let i = chars.length - 1; i >= 0; i -= 1) {
+    if (chars[i] === ' ') {
+      lastSpace = i;
+      break;
+    }
+  }
+  let minReveal = 0;
+  if (lastSpace >= 0) {
+    for (let i = 0; i < lastSpace; i += 1) {
+      if (chars[i] !== ' ') minReveal += 1;
+    }
+  }
+  // 최소 1칸은 가려야 하므로 노출은 total-1 이하
+  const reveal = Math.min(Math.max(revealCount, minReveal), total - 1);
+
+  let rank = 0;
+  let out = '';
+  for (const c of chars) {
+    if (c === ' ') {
+      out += ' ';
+      continue;
+    }
+    out += rank < reveal ? c : '□';
+    rank += 1;
+  }
+  return out;
 }
 
 // 난이도 → 가릴(빈 칸) 글자 수 목표: 하 1~2칸, 중 3~4칸, 상 5칸 이상.
