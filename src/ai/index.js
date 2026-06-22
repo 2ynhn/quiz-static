@@ -31,7 +31,6 @@ import {
   parseMaskTemplate,
   applyMask,
   applyBracketMask,
-  revealCountForWord,
   visibleLength,
   WORD_MIN_CHARS,
 } from '../mask.js';
@@ -105,8 +104,8 @@ async function generateWordCompletion({
     if (len < WORD_MIN_CHARS) continue; // 2글자 이하 정답은 출제 제외
     const norm = normalizeForLeak(clean);
     if (!norm || seen.has(norm)) continue;
-    const masked = applyBracketMask(clean, revealCountForWord(len));
-    if (!masked) continue;
+    const masked = applyBracketMask(clean);
+    if (!masked) continue; // 노출 2글자 미만 등 출제 불가
     seen.add(norm);
     out.push({ question: masked, answer: clean, hint: '', altAnswers: [] });
   }

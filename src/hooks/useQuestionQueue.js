@@ -6,7 +6,7 @@ import { getAskedForPrompt, getAskedSet, addAsked } from '../data/askedAnswers.j
 import { fetchBankGeneral, fetchBankWordMap } from '../data/bank.js';
 import { normalizeForLeak } from '../ai/shared.js';
 import { usesTrivia } from '../categoryRules.js';
-import { applyBracketMask, revealCountForWord, visibleLength } from '../mask.js';
+import { applyBracketMask, visibleLength } from '../mask.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -98,10 +98,9 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       return names
         .map((raw) => {
           const n = String(raw).replace(/\s+/g, ' ').trim();
-          // 모든 주제 공통: 공백 제외 3글자 이상만, 뒤 1~2글자만 가림(노출 최소 2글자)
-          const len = visibleLength(n);
-          if (len < 3) return null;
-          const masked = applyBracketMask(n, revealCountForWord(len));
+          // 모든 주제 공통: 공백 제외 3글자 이상만(나머지 규칙은 applyBracketMask가 처리)
+          if (visibleLength(n) < 3) return null;
+          const masked = applyBracketMask(n);
           return masked ? { question: masked, answer: n, hint: '', altAnswers: [] } : null;
         })
         .filter(Boolean);
