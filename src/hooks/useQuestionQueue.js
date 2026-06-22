@@ -6,7 +6,7 @@ import { getAskedForPrompt, getAskedSet, addAsked } from '../data/askedAnswers.j
 import { fetchBankGeneral, fetchBankWordMap } from '../data/bank.js';
 import { normalizeForLeak } from '../ai/shared.js';
 import { usesTrivia } from '../categoryRules.js';
-import { applyBracketMask, revealCountForDifficulty, visibleLength } from '../mask.js';
+import { applyBracketMask, revealCountForWord, visibleLength } from '../mask.js';
 import {
   FALLBACK_QUESTIONS,
   FALLBACK_DEFAULT_CATEGORY,
@@ -94,15 +94,14 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
     if (wordComplete) {
       const map = await fetchBankWordMap();
       const topic = wordComplete.topic || category;
-      const isMovie = /영화/.test(topic);
       const names = Array.isArray(map[topic]) ? map[topic] : [];
       return names
         .map((raw) => {
           const n = String(raw).replace(/\s+/g, ' ').trim();
-          // 빈 칸 수가 난이도에 따라 달라지도록 단어 길이별(공백 제외)로 가림 수를 계산
+          // 모든 주제 공통: 공백 제외 3글자 이상만, 뒤 1~2글자만 가림(노출 최소 2글자)
           const len = visibleLength(n);
-          if (isMovie && len < 3) return null; // 영화 제목은 공백 제외 3글자 이상만
-          const masked = applyBracketMask(n, revealCountForDifficulty(len, difficulty));
+          if (len < 3) return null;
+          const masked = applyBracketMask(n, revealCountForWord(len));
           return masked ? { question: masked, answer: n, hint: '', altAnswers: [] } : null;
         })
         .filter(Boolean);
@@ -111,7 +110,7 @@ export function useQuestionQueue({ aiConfig, category, difficulty, typeHint = ''
       return await fetchBankGeneral();
     }
     return [];
-  }, [category, difficulty, wordComplete]);
+  }, [category, wordComplete]);
 
   // 진행 중 요청 하나를 공유(StrictMode 이중 실행·선행 로딩 경합 방지)
   const fill = useCallback(() => {

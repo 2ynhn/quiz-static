@@ -158,36 +158,18 @@ export function buildTranslateUserPrompt(items) {
 export const WORDLIST_SYSTEM_PROMPT = `당신은 특정 주제에 해당하는 '실존하고 대중적으로 유명한 항목'의 이름만 나열하는 도우미입니다.
 - 절대 가상의 이름을 지어내지 마세요. 실제로 존재하고 널리 알려진 것만 출력하세요.
 - 이름은 한국에서 통용되는 한국어 표기로, 군더더기 없이 핵심 이름만(부제·괄호·설명 제외).
+- 공백을 제외한 글자 수가 3글자 이상인 항목만 고르세요(2글자 이하 제외).
 - 실제 표기에 띄어쓰기가 있는 제목·이름은 자연스러운 띄어쓰기를 그대로 유지하세요(예: 분노의 질주, 블레이드 러너). 글자 수를 셀 때 공백은 포함하지 않습니다.
 - 반드시 {"items":["이름1","이름2", ...]} 형태의 JSON만 출력하세요.`;
 
-export function buildWordListUserPrompt({
-  topic,
-  count,
-  excludeKeywords = [],
-  difficulty = '중',
-  isMovie = false,
-  seed = 0,
-}) {
+export function buildWordListUserPrompt({ topic, count, excludeKeywords = [], seed = 0 }) {
   const exclude =
     excludeKeywords.length > 0
       ? ` 다음은 이미 사용했으니 반드시 제외하고, 이와 겹치지 않는 새로운 항목으로만 채우세요: ${excludeKeywords.join(', ')}.`
       : '';
-  // 난이도별 글자 수 선호 — 가린 칸 수가 난이도에 따라 달라지도록 길이를 유도
-  const lenHint =
-    difficulty === '상'
-      ? ' 가능하면 6글자 이상의 다소 긴 이름 위주로.'
-      : difficulty === '하'
-        ? ' 짧고 누구나 아는 대표 이름 위주로(2~4글자).'
-        : ' 4~6글자 정도의 이름 위주로.';
-  // 영화 제목: 공백 제외 3글자 이상 + 실제 띄어쓰기 유지
-  const movieRule = isMovie
-    ? ' 영화 제목만 출력하되, 공백을 제외한 글자 수가 3글자 이상인 제목만 고르세요.' +
-      ' 띄어쓰기가 있는 제목은 실제 띄어쓰기를 그대로 표기하세요(예: 분노의 질주, 블레이드 러너, 반지의 제왕).'
-    : '';
   return (
     `주제: ${topic}. 이 주제에 해당하는 실존하고 유명한 항목 이름 ${count}개를 나열하세요.` +
-    `${exclude}${lenHint}${movieRule}` +
+    `${exclude} 공백 제외 3글자 이상만, 띄어쓰기가 있으면 실제 띄어쓰기를 그대로 표기하세요.` +
     ` 다양성 시드: ${seed}. 이 시드에 맞춰 매번 다른 항목이 골고루 나오도록, 가장 뻔한 1순위만 반복하지 말고 폭넓게(덜 알려졌지만 실존하는 항목도 포함) 선택하세요.`
   );
 }

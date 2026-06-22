@@ -31,9 +31,9 @@ import {
   parseMaskTemplate,
   applyMask,
   applyBracketMask,
-  revealCountForDifficulty,
-  fitsDifficulty,
+  revealCountForWord,
   visibleLength,
+  WORD_MIN_CHARS,
 } from '../mask.js';
 import { classifyCategory, usesTrivia } from '../categoryRules.js';
 import { fetchTrivia } from '../data/trivia.js';
@@ -45,12 +45,6 @@ import { fetchIdioms } from '../data/wiki.js';
 function isIdiomTopic(topic) {
   return /사자성어|고사성어/.test(String(topic || ''));
 }
-
-// 영화 제목 주제 — 공백 제외 3글자 이상만 다루고, 띄어쓰기를 인정/표시한다.
-function isMovieTopic(topic) {
-  return /영화/.test(String(topic || ''));
-}
-const MOVIE_MIN_CHARS = 3;
 
 function shuffleArr2(arr) {
   const a = [...arr];
@@ -67,7 +61,6 @@ async function generateWordCompletion({
   model,
   topic,
   count,
-  difficulty,
   seen,
   excludeKeywords = [],
 }) {
@@ -91,8 +84,6 @@ async function generateWordCompletion({
             topic,
             count: Math.max(count + 6, 12),
             excludeKeywords,
-            difficulty,
-            isMovie: isMovieTopic(topic),
             // 매 생성마다 다른 시드 → 같은 모델이라도 다른 항목을 고르게 해 반복을 줄인다
             seed: Math.floor(Math.random() * 100000),
           }),
@@ -105,24 +96,20 @@ async function generateWordCompletion({
   }
   if (names.length === 0) return null;
 
-  // 가린 칸 수가 난이도에 따라 달라지도록 단어 길이별(공백 제외)로 reveal 수를 계산한다.
-  // 난이도 빈 칸 하한을 만족하는 단어(fits)를 우선 배치하고, 부족하면 나머지로 채운다.
-  const movie = isMovieTopic(topic);
-  const fits = [];
-  const others = [];
+  // 모든 주제 공통 규칙: 공백 제외 3글자 이상만, 뒤 1~2글자만 가림(노출 최소 2글자).
+  // 띄어쓰기는 그대로 표시하고 마스킹이 공백을 가로지르지 않는다(applyBracketMask가 처리).
+  const out = [];
   for (const name of names) {
     const clean = String(name).replace(/\s+/g, ' ').trim();
     const len = visibleLength(clean); // 공백 제외 글자 수
-    if (movie && len < MOVIE_MIN_CHARS) continue; // 영화 제목은 3글자 이상만
+    if (len < WORD_MIN_CHARS) continue; // 2글자 이하 정답은 출제 제외
     const norm = normalizeForLeak(clean);
     if (!norm || seen.has(norm)) continue;
-    const masked = applyBracketMask(clean, revealCountForDifficulty(len, difficulty));
-    if (!masked) continue; // 가릴 글자가 없음(짧은 이름)
+    const masked = applyBracketMask(clean, revealCountForWord(len));
+    if (!masked) continue;
     seen.add(norm);
-    const item = { question: masked, answer: clean, hint: '', altAnswers: [] };
-    (fitsDifficulty(len, difficulty) ? fits : others).push(item);
+    out.push({ question: masked, answer: clean, hint: '', altAnswers: [] });
   }
-  const out = [...fits, ...others];
   return out.length > 0 ? out : null;
 }
 
@@ -374,7 +361,6 @@ export async function generateQuestions({
       model,
       topic: wordComplete.topic || category,
       count: Math.max(count, 12),
-      difficulty,
       seen,
       excludeKeywords: excludeKeywords.slice(-80),
     });
