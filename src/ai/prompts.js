@@ -162,14 +162,23 @@ export const WORDLIST_SYSTEM_PROMPT = `당신은 특정 주제에 해당하는 '
 - 실제 표기에 띄어쓰기가 있는 제목·이름은 자연스러운 띄어쓰기를 그대로 유지하세요(예: 분노의 질주, 블레이드 러너). 글자 수를 셀 때 공백은 포함하지 않습니다.
 - 반드시 {"items":["이름1","이름2", ...]} 형태의 JSON만 출력하세요.`;
 
+// 영화 제목 표기 규칙 — 띄어쓰기·시리즈 번호를 통일한다.
+const MOVIE_TITLE_RULE =
+  ' [영화 제목 표기 규칙]' +
+  ' (1) 시리즈 번호(편 수)는 제외하고 기본 제목만 쓰세요 (예: 아이언맨2 → 아이언맨, 반지의 제왕2 → 반지의 제왕).' +
+  ' (2) 제목 맨 앞이 더(The)이면 띄어 쓰세요 (예: 더페이버릿 → 더 페이버릿).' +
+  ' (3) 제목 맨 끝의 맨(man)·우먼(woman)은 앞 단어에 붙여 쓰세요 (예: 아이언 맨 → 아이언맨, 앤트 맨 → 앤트맨).';
+
 export function buildWordListUserPrompt({ topic, count, excludeKeywords = [], seed = 0 }) {
   const exclude =
     excludeKeywords.length > 0
       ? ` 다음은 이미 사용했으니 반드시 제외하고, 이와 겹치지 않는 새로운 항목으로만 채우세요: ${excludeKeywords.join(', ')}.`
       : '';
+  const movieRule = /영화/.test(String(topic || '')) ? MOVIE_TITLE_RULE : '';
   return (
     `주제: ${topic}. 이 주제에 해당하는 실존하고 유명한 항목 이름 ${count}개를 나열하세요.` +
     `${exclude} 공백 제외 3글자 이상만, 띄어쓰기가 있으면 실제 띄어쓰기를 그대로 표기하세요.` +
+    movieRule +
     ` 다양성 시드: ${seed}. 이 시드에 맞춰 매번 다른 항목이 골고루 나오도록, 가장 뻔한 1순위만 반복하지 말고 폭넓게(덜 알려졌지만 실존하는 항목도 포함) 선택하세요.`
   );
 }

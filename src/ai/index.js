@@ -25,6 +25,7 @@ import {
   finalizeChoices,
   isYearAnswer,
   normalizeItems,
+  normalizeTitle,
 } from './shared.js';
 import { makeDiversityAxes } from '../data/subtopics.js';
 import {
@@ -43,6 +44,11 @@ import { fetchIdioms } from '../data/wiki.js';
 //  - 그 외 주제 → AI가 실존 유명 항목 목록 생성(가상 금지)
 function isIdiomTopic(topic) {
   return /사자성어|고사성어/.test(String(topic || ''));
+}
+
+// 영화 주제 — 제목 띄어쓰기·시리즈 번호 정규화를 적용한다.
+function isMovieTopic(topic) {
+  return /영화/.test(String(topic || ''));
 }
 
 function shuffleArr2(arr) {
@@ -97,9 +103,11 @@ async function generateWordCompletion({
 
   // 모든 주제 공통 규칙: 공백 제외 3글자 이상만, 뒤 1~2글자만 가림(노출 최소 2글자).
   // 띄어쓰기는 그대로 표시하고 마스킹이 공백을 가로지르지 않는다(applyBracketMask가 처리).
+  const movieTopic = isMovieTopic(topic);
   const out = [];
   for (const name of names) {
-    const clean = String(name).replace(/\s+/g, ' ').trim();
+    let clean = String(name).replace(/\s+/g, ' ').trim();
+    if (movieTopic) clean = normalizeTitle(clean); // 영화 제목 띄어쓰기·시리즈 번호 정규화
     const len = visibleLength(clean); // 공백 제외 글자 수
     if (len < WORD_MIN_CHARS) continue; // 2글자 이하 정답은 출제 제외
     const norm = normalizeForLeak(clean);

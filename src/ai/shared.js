@@ -59,6 +59,24 @@ export function finalizeChoices(q) {
   return { ...q, choices: shuffle(out) };
 }
 
+// 영화 제목 띄어쓰기·시리즈 번호 정규화 규칙
+//  - 시리즈 숫자 제거: 끝에 붙은 숫자는 시리즈 번호로 보고 제거 (아이언맨2 → 아이언맨, 반지의 제왕2 → 반지의 제왕)
+//    단, '노예 12년'·'7번방의 선물'처럼 숫자 뒤에 글자가 있으면 제목의 일부이므로 건드리지 않는다.
+//  - 더(The)가 첫 단어이면 띄어쓰기: 더헐크 → 더 헐크, 더페이버릿 → 더 페이버릿
+//  - 끝의 맨(man)·우먼(woman)은 붙여쓰기: 아이언 맨 → 아이언맨, 앤트 맨 → 앤트맨
+export function normalizeTitle(name) {
+  let s = String(name).replace(/\s+/g, ' ').trim();
+  if (!s) return s;
+  // 1) 끝에 붙은 시리즈 숫자 제거 (앞에 공백이 있든 없든)
+  s = s.replace(/\s*\d+\s*$/, '').trim();
+  // 2) 첫 단어가 '더'(The)이면 뒤에 공백 추가
+  s = s.replace(/^더(?=\S)/, '더 ');
+  // 3) 끝의 ' 맨' / ' 우먼'은 앞 단어에 붙임 (아이언 맨 → 아이언맨).
+  //    단 '오브 맨'(of Men)처럼 연결어 뒤의 맨은 별개 단어이므로 건드리지 않는다.
+  s = s.replace(/(?<!오브)\s+(맨|우먼)$/, '$1');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
 // 단어 완성: {"items":["..."]} → 문자열 배열로 정규화
 export function normalizeItems(parsed) {
   const list = Array.isArray(parsed?.items) ? parsed.items : [];
